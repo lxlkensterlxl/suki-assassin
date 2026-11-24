@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SUKI // OS" />
+  <meta name="theme-color" content="#07040e" />
+  <meta name="description" content="SUKI // SHADOW-OS - Self-Learning Cyber-Assassin AI Companion" />
+  <title>SUKI // Cyber-Assassin AI Companion</title>
+  <style>
+    :root {
+      --bg-void: #07040e;
+      --bg-panel: rgba(16, 10, 30, 0.82);
+      --neon-purple: #a855f7;
+      --neon-fuchsia: #ec4899;
+      --neon-cyan: #22d3ee;
+      --cyber-silver: #94a3b8;
+      --text-main: #f3e8ff;
+      --text-dim: #a78bfa;
+      --border-glow: rgba(168, 85, 247, 0.45);
+      --safe-top: env(safe-area-inset-top, 12px);
+      --safe-bottom: env(safe-area-inset-bottom, 12px);
+    }
+
+    body.theme-cyan {
+      --neon-purple: #0ea5e9;
+      --neon-fuchsia: #22d3ee;
+      --neon-cyan: #38bdf8;
+      --text-dim: #7dd3fc;
+      --border-glow: rgba(34, 211, 238, 0.48);
+    }
+
+    body.theme-crimson {
+      --neon-purple: #e11d48;
+      --neon-fuchsia: #fb7185;
+      --neon-cyan: #f59e0b;
+      --text-dim: #fda4af;
+      --border-glow: rgba(225, 29, 72, 0.5);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    input, textarea, select, .speech-bubble, .memory-list {
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    button, .task-chip, .suki-wrapper, .timer-badge {
+      touch-action: manipulation;
+    }
+
+    html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #07040e;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 50% 30%, #1c0d36 0%, #090512 65%, #040208 100%);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: background 0.4s ease;
+    }
+
+    body.theme-cyan {
+      background: radial-gradient(circle at 50% 30%, #09243b 0%, #05101d 65%, #02060c 100%);
+    }
+
+    body.theme-crimson {
+      background: radial-gradient(circle at 50% 30%, #330b19 0%, #13040a 65%, #070104 100%);
+    }
+
+    #fx-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Top Cyber HUD Header */
+    .hud-header {
+      position: relative;
+      z-index: 10;
+      flex-shrink: 0;
+      padding: calc(var(--safe-top) + 6px) 14px 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(180deg, rgba(7, 4, 14, 0.94) 0%, rgba(7, 4, 14, 0) 100%);
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+      gap: 6px;
+    }
+
+    .brand-tag {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--neon-cyan);
+      box-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-purple);
+      animation: pulseDot 2s infinite;
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 1.2px;
+      background: linear-gradient(90deg, #fff, var(--neon-purple), var(--neon-fuchsia));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hud-controls {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .hud-btn {
+      background: rgba(28, 16, 52, 0.88);
+      border: 1px solid var(--border-glow);
+      color: var(--text-main);
+      border-radius: 10px;
+      padding: 6px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .hud-btn:active {
+      transform: scale(0.94);
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 12px rgba(34, 211, 238, 0.4);
+    }
+
+    .hud-btn.active {
+      background: rgba(168, 85, 247, 0.32);
+      border-color: var(--neon-fuchsia);
+      color: #fff;
+      box-shadow: 0 0 12px rgba(236, 72, 153, 0.25);
+    }
+
+    .timer-badge {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      background: rgba(34, 211, 238, 0.16);
+      border: 1px solid var(--neon-cyan);
+      color: var(--neon-cyan);
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 10.5px;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .timer-badge.visible {
+      display: inline-flex;
+    }
+
+    /* Animated Suki Stage */
+    .stage {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 14px 4px;
+      z-index: 2;
+      overflow: hidden;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* Floating Speech / HUD Subtitles (Flex-flow safe for short phone screens) */
+    .speech-bubble {
+      position: relative;
+      flex-shrink: 0;
+      width: 100%;
+      background: rgba(14, 9, 28, 0.92);
+      border: 1px solid rgba(168, 85, 247, 0.55);
+      border-left: 3px solid var(--neon-cyan);
+      border-radius: 14px;
+      padding: 9px 12px;
+      font-size: 13px;
+      line-height: 1.4;
+      color: #f5f3ff;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.65);
+      z-index: 8;
+      max-height: 22vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .speech-bubble.learned-flash {
+      border-color: var(--neon-fuchsia);
+      border-left-color: var(--neon-fuchsia);
+      box-shadow: 0 0 24px rgba(236, 72, 153, 0.55);
+    }
+
+    .speech-meta {
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      color: var(--neon-cyan);
+      margin-bottom: 3px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+      gap: 6px;
+    }
+
+    .affinity-pill {
+      background: rgba(236, 72, 153, 0.22);
+      border: 1px solid rgba(236, 72, 153, 0.5);
+      color: #f9a8d4;
+      padding: 1px 7px;
+      border-radius: 999px;
+      font-size: 9px;
+      white-space: nowrap;
+    }
+
+    .suki-wrapper {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      width: min(290px, 72vw);
+      max-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: hoverFloat 4.2s ease-in-out infinite;
+      cursor: pointer;
+      transition: filter 0.25s ease, transform 0.2s ease;
+      perspective: 600px;
+    }
+
+    .suki-wrapper:active {
+      transform: scale(0.97);
+    }
+
+    .suki-wrapper.speaking {
+      filter: drop-shadow(0 0 22px rgba(236, 72, 153, 0.7));
+    }
+
+    .suki-wrapper.speaking #suki-mouth {
+      transform-box: fill-box;
+      transform-origin: 50% 50%;
+      animation: mouthTalk 0.16s ease-in-out infinite alternate;
+    }
+
+    .suki-wrapper.attack-slash {
+      animation: ninjaDash 0.48s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Hide avatar cleanly when soft keyboard opens on small phones */
+    body.keyboard-open .suki-wrapper {
+      display: none;
+    }
+
+    .holo-ring {
+      position: absolute;
+      bottom: 4px;
+      width: 200px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid rgba(168, 85, 247, 0.65);
+      box-shadow: 0 0 25px rgba(168, 85, 247, 0.55), inset 0 0 15px rgba(34, 211, 238, 0.45);
+      animation: ringSpin 8s linear infinite;
+      pointer-events: none;
+    }
+
+    .holo-ring::after {
+      content: "";
+      position: absolute;
+      inset: 6px;
+      border-radius: 50%;
+      border: 1px dashed var(--neon-cyan);
+      opacity: 0.75;
+    }
+
+    #custom-suki-img {
+      display: none;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 20px;
+      filter: drop-shadow(0 0 18px rgba(168, 85, 247, 0.65));
+      mask-image: linear-gradient(to bottom, black 82%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, black 82%, transparent 100%);
+      animation: customBreath 3.6s ease-in-out infinite alternate;
+    }
+
+    /* SVG Character Rig Animations */
+    #suki-svg {
+      width: 100%;
+      height: 100%;
+      max-height: 100%;
+      overflow: visible;
+      filter: drop-shadow(0 12px 26px rgba(0, 0, 0, 0.9));
+    }
+
+    .orb-spin-cw {
+      transform-box: fill-box;
+      transform-origin: 50% 50%;
+      animation: spinOrbCW 5s linear infinite;
+    }
+
+    .orb-spin-ccw {
+      transform-box: fill-box;
+      transform-origin: 50% 50%;
+      animation: spinOrbCCW 3.4s linear infinite;
+    }
+
+    .orb-core-pulse {
+      transform-box: fill-box;
+      transform-origin: 50% 50%;
+      animation: pulseAura 1.5s ease-in-out infinite alternate;
+    }
+
+    .suki-wrapper.speaking .orb-core-pulse {
+      animation: pulseAura 0.28s ease-in-out infinite alternate;
+    }
+
+    .suki-wrapper.speaking .orb-spin-cw {
+      animation-duration: 1.4s;
+    }
+
+    .suki-wrapper.attack-slash .orb-core-pulse {
+      filter: brightness(2.2) drop-shadow(0 0 24px #22d3ee);
+    }
+
+    .ear-twitch-l {
+      transform-box: fill-box;
+      transform-origin: 78% 92%;
+      animation: earTwitch 5.5s infinite;
+    }
+
+    .ear-twitch-r {
+      transform-box: fill-box;
+      transform-origin: 22% 92%;
+      animation: earTwitch 5.5s infinite 0.3s;
+    }
+
+    .eye-blink {
+      transform-box: fill-box;
+      transform-origin: 50% 50%;
+      animation: blinkAnim 4.8s infinite;
+    }
+
+    .pigtail-sway-l {
+      transform-box: fill-box;
+      transform-origin: 65% 5%;
+      animation: pigtailSwayL 3.8s ease-in-out infinite alternate;
+    }
+
+    .pigtail-sway-r {
+      transform-box: fill-box;
+      transform-origin: 35% 5%;
+      animation: pigtailSwayR 3.8s ease-in-out infinite alternate;
+    }
+
+    .shoulder-node-glow {
+      animation: nodePulse 2.2s ease-in-out infinite alternate;
+    }
+
+    /* Action Dock & Chat Bar */
+    .bottom-dock {
+      position: relative;
+      z-index: 12;
+      flex-shrink: 0;
+      background: linear-gradient(0deg, rgba(7, 4, 14, 0.98) 76%, rgba(7, 4, 14, 0) 100%);
+      padding: 4px 12px calc(var(--safe-bottom) + 8px);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .task-strip {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 2px 0;
+      scrollbar-width: none;
+    }
+    .task-strip::-webkit-scrollbar { display: none; }
+
+    .task-chip {
+      flex: 0 0 auto;
+      background: rgba(26, 15, 48, 0.9);
+      border: 1px solid rgba(168, 85, 247, 0.42);
+      color: #e9d5ff;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+    }
+
+    .task-chip:active {
+      background: var(--neon-purple);
+      color: #fff;
+      transform: scale(0.96);
+    }
+
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(20, 12, 38, 0.95);
+      border: 1px solid var(--border-glow);
+      border-radius: 16px;
+      padding: 6px 7px 6px 13px;
+      box-shadow: 0 0 22px rgba(168, 85, 247, 0.22);
+    }
+
+    .input-row:focus-within {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 24px rgba(34, 211, 238, 0.28);
+    }
+
+    /* 16px font prevents iOS Safari auto-zoom on focus */
+    #user-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-size: 16px;
+      min-width: 0;
+    }
+
+    #user-input::placeholder {
+      color: rgba(167, 139, 250, 0.58);
+      font-size: 14px;
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .icon-btn:active {
+      transform: scale(0.93);
+    }
+
+    #mic-btn {
+      background: rgba(236, 72, 153, 0.2);
+      color: var(--neon-fuchsia);
+      border: 1px solid rgba(236, 72, 153, 0.5);
+    }
+
+    #mic-btn.listening {
+      background: var(--neon-fuchsia);
+      color: #fff;
+      box-shadow: 0 0 18px var(--neon-fuchsia);
+      animation: pulseDot 1s infinite;
+    }
+
+    #send-btn {
+      background: linear-gradient(135deg, var(--neon-purple), var(--neon-fuchsia));
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 0 14px rgba(168, 85, 247, 0.45);
+    }
+
+    /* Settings & Neural Memory Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 2, 10, 0.88);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 450px;
+      background: #120a24;
+      border: 1px solid var(--neon-purple);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 0 38px rgba(168, 85, 247, 0.4);
+      max-height: 85dvh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 14.5px;
+      letter-spacing: 0.7px;
+      color: var(--neon-cyan);
+    }
+
+    .modal-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid rgba(168, 85, 247, 0.25);
+      padding-bottom: 8px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: rgba(24, 14, 46, 0.8);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      color: var(--text-dim);
+      padding: 8px 6px;
+      border-radius: 9px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .tab-btn.active {
+      background: rgba(168, 85, 247, 0.32);
+      border-color: var(--neon-cyan);
+      color: #fff;
+    }
+
+    .tab-pane {
+      display: none;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    .modal-field {
+      margin-bottom: 12px;
+    }
+
+    .modal-field label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-dim);
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+
+    .modal-field input,
+    .modal-field select {
+      width: 100%;
+      padding: 9px 11px;
+      border-radius: 10px;
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      background: #090512;
+      color: #fff;
+      font-size: 16px;
+      outline: none;
+    }
+
+    .modal-field input[type="range"] {
+      padding: 4px 0;
+      accent-color: var(--neon-cyan);
+    }
+
+    .inline-add-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .inline-add-row input {
+      flex: 1;
+      min-width: 0;
+      padding: 8px 11px;
+      border-radius: 10px;
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      background: #090512;
+      color: #fff;
+      font-size: 16px;
+      outline: none;
+    }
+
+    .modal-hint {
+      font-size: 11.5px;
+      color: var(--cyber-silver);
+      line-height: 1.45;
+      margin-bottom: 12px;
+      background: rgba(34, 211, 238, 0.08);
+      border: 1px solid rgba(34, 211, 238, 0.25);
+      padding: 8px 10px;
+      border-radius: 10px;
+    }
+
+    .memory-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .stat-box {
+      background: rgba(9, 5, 18, 0.9);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      border-radius: 10px;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .stat-val {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--neon-cyan);
+    }
+
+    .stat-lbl {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .memory-list {
+      background: #090512;
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      border-radius: 10px;
+      padding: 10px;
+      max-height: 170px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      font-size: 12.5px;
+      line-height: 1.45;
+      color: #e9d5ff;
+      margin-bottom: 12px;
+    }
+
+    .mem-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(168, 85, 247, 0.16);
+    }
+    .mem-item:last-child { border-bottom: none; }
+
+    .mem-tag {
+      display: inline-block;
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--neon-cyan);
+      background: rgba(34, 211, 238, 0.12);
+      border-radius: 4px;
+      padding: 1px 5px;
+      margin-right: 5px;
+    }
+
+    .mem-del {
+      background: transparent;
+      border: none;
+      color: var(--neon-fuchsia);
+      cursor: pointer;
+      font-size: 15px;
+      padding: 2px 6px;
+      flex-shrink: 0;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--neon-purple), var(--neon-fuchsia));
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 14px;
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-secondary {
+      background: rgba(34, 211, 238, 0.16);
+      color: var(--neon-cyan);
+      border: 1px solid rgba(34, 211, 238, 0.45);
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-danger {
+      background: rgba(236, 72, 153, 0.18);
+      color: #f9a8d4;
+      border: 1px solid rgba(236, 72, 153, 0.5);
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Keyframe Animations */
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.85); }
+    }
+
+    @keyframes hoverFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes mouthTalk {
+      0% { transform: scaleY(0.55); }
+      100% { transform: scaleY(1.55); }
+    }
+
+    @keyframes ninjaDash {
+      0% { transform: translateX(0) scale(1); filter: brightness(1); }
+      25% { transform: translateX(-24px) skewX(-8deg) scale(1.04); filter: brightness(1.6) drop-shadow(0 0 24px #22d3ee); }
+      55% { transform: translateX(28px) skewX(10deg) scale(1.06); filter: brightness(1.8) drop-shadow(0 0 28px #ec4899); }
+      100% { transform: translateX(0) scale(1); filter: brightness(1); }
+    }
+
+    @keyframes ringSpin {
+      0% { transform: rotateX(68deg) rotateZ(0deg); }
+      100% { transform: rotateX(68deg) rotateZ(360deg); }
+    }
+
+    @keyframes pulseAura {
+      0% { opacity: 0.45; transform: scale(0.95); }
+      100% { opacity: 0.95; transform: scale(1.1); }
+    }
+
+    @keyframes earTwitch {
+      0%, 92%, 100% { transform: rotate(0deg); }
+      95% { transform: rotate(-10deg); }
+      98% { transform: rotate(5deg); }
+    }
+
+    @keyframes blinkAnim {
+      0%, 94%, 100% { transform: scaleY(1); }
+      97% { transform: scaleY(0.08); }
+    }
+
+    @keyframes spinOrbCW {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes spinOrbCCW {
+      0% { transform: rotate(360deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    @keyframes pigtailSwayL {
+      0% { transform: rotate(-2deg); }
+      100% { transform: rotate(2.5deg); }
+    }
+
+    @keyframes pigtailSwayR {
+      0% { transform: rotate(2deg); }
+      100% { transform: rotate(-2.5deg); }
+    }
+
+    @keyframes nodePulse {
+      0% { opacity: 0.72; }
+      100% { opacity: 1; }
+    }
+
+    @keyframes customBreath {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.022); }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="fx-canvas"></canvas>
+
+  <!-- HUD Header -->
+  <header class="hud-header">
+    <div class="brand-tag">
+      <span class="status-dot" id="status-dot"></span>
+      <span class="brand-title">SUKI // SHADOW-OS</span>
+      <span class="timer-badge" id="timer-badge" title="Tap to cancel active timer">⏱️ <span id="timer-text">00:00</span></span>
+    </div>
+    <div class="hud-controls">
+      <button class="hud-btn active" id="voice-btn" title="Toggle Voice Synthesis">🔊 TTS</button>
+      <button class="hud-btn" id="slash-btn" title="Trigger Shadow Strike">⚡ STRIKE</button>
+      <button class="hud-btn" id="core-btn" title="Neural Memory & AI Core">🧠 CORE</button>
+    </div>
+  </header>
+
+  <!-- Main Stage -->
+  <main class="stage">
+    <!-- Floating Speech Bubble / Subtitles -->
+    <div class="speech-bubble" id="speech-bubble">
+      <div class="speech-meta">
+        <span id="speech-status">SUKI // NEURAL LINK ONLINE</span>
+        <span class="affinity-pill" id="affinity-pill">SYNC 15% // INITIATE</span>
+      </div>
+      <div id="speech-text">Shadow protocols initialized. I am Suki—your tactical cyber-assassin companion. Tell me your name, give me a task, or teach me something new to encode into my neural core.</div>
+    </div>
+
+    <!-- Interactive Character Rig -->
+    <div class="suki-wrapper" id="suki-wrapper" title="Tap Suki to interact">
+      <div class="holo-ring"></div>
+      <img id="custom-suki-img" alt="Custom Suki Avatar" />
+
+      <svg id="suki-svg" viewBox="0 0 320 400" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="darkHairGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#221933" />
+            <stop offset="55%" stop-color="#140e21" />
+            <stop offset="100%" stop-color="#0a0712" />
+          </linearGradient>
+          <linearGradient id="braidOmbreGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#291942" />
+            <stop offset="32%" stop-color="#6b21a8" />
+            <stop offset="72%" stop-color="#a855f7" />
+            <stop offset="100%" stop-color="#c026d3" />
+          </linearGradient>
+          <linearGradient id="violetStreakGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#9333ea" />
+            <stop offset="50%" stop-color="#c084fc" />
+            <stop offset="100%" stop-color="#7e22ce" />
+          </linearGradient>
+          <linearGradient id="earOuterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#7e22ce" />
+            <stop offset="100%" stop-color="#3b0764" />
+          </linearGradient>
+          <linearGradient id="earInnerGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#f0abfc" />
+            <stop offset="55%" stop-color="#c084fc" />
+            <stop offset="100%" stop-color="#7e22ce" />
+          </linearGradient>
+          <linearGradient id="skinGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#f3e5ec" />
+            <stop offset="75%" stop-color="#e3cdd9" />
+            <stop offset="100%" stop-color="#cbb0c2" />
+          </linearGradient>
+          <linearGradient id="darkLipGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#1f122b" />
+            <stop offset="50%" stop-color="#4c1d6e" />
+            <stop offset="100%" stop-color="#140a1f" />
+          </linearGradient>
+          <linearGradient id="armorSilverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#94a3b8" />
+            <stop offset="45%" stop-color="#64748b" />
+            <stop offset="100%" stop-color="#334155" />
+          </linearGradient>
+          <linearGradient id="cyberHandGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#475569" />
+            <stop offset="50%" stop-color="#1e293b" />
+            <stop offset="100%" stop-color="#0f172a" />
+          </linearGradient>
+          <radialGradient id="orbHaloGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#e879f9" stop-opacity="0.95" />
+            <stop offset="42%" stop-color="#a855f7" stop-opacity="0.48" />
+            <stop offset="75%" stop-color="#22d3ee" stop-opacity="0.18" />
+            <stop offset="100%" stop-color="#07040e" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id="orbCoreGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#ffffff" />
+            <stop offset="38%" stop-color="#f5d0fe" />
+            <stop offset="72%" stop-color="#c026d3" />
+            <stop offset="100%" stop-color="#581c87" />
+          </radialGradient>
+          <linearGradient id="orbShellGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#cbd5e1" />
+            <stop offset="50%" stop-color="#7c3aed" />
+            <stop offset="100%" stop-color="#312e81" />
+          </linearGradient>
+          <linearGradient id="torsoFadeMask" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="1" />
+            <stop offset="86%" stop-color="#ffffff" stop-opacity="1" />
+            <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+          </linearGradient>
+          <mask id="bustFade">
+            <rect x="0" y="0" width="320" height="390" fill="url(#torsoFadeMask)" />
+          </mask>
+          <filter id="glowFilter" x="-35%" y="-35%" width="170%" height="170%">
+            <feGaussianBlur stdDeviation="3.5" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        <g mask="url(#bustFade)">
+          <!-- Back Hair Volume & Side Wisps -->
+          <path d="M92,102 C64,132 56,162 42,174 C60,175 74,168 82,158 C74,185 80,218 96,236 L224,236 C240,218 246,185 238,158 C248,168 264,172 278,168 C258,154 248,128 228,102 Z" fill="url(#darkHairGrad)" stroke="#090612" stroke-width="2" />
+          <path d="M78,144 C70,168 74,195 88,214 C92,192 92,168 96,148 Z" fill="#9333ea" opacity="0.85" />
+          <path d="M242,144 C250,168 246,195 232,214 C228,192 228,168 224,148 Z" fill="#9333ea" opacity="0.85" />
+
+          <!-- Cybernetic Cat Ears -->
+          <g class="ear-twitch-l">
+            <path d="M98,96 C84,68 82,34 88,16 C108,22 
