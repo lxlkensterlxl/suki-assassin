@@ -324,7 +324,7 @@
 
     <!-- Main Logic Script -->
     <script>
-        // --- Web Audio Synthesizer Sound Engine ---
+        // --- 1. Web Audio Synthesizer Sound Engine (Resumes suspended AudioContext) ---
         class SoundEngine {
             constructor() {
                 this.ctx = null;
@@ -336,6 +336,9 @@
                     const AudioCtx = window.AudioContext || window.webkitAudioContext;
                     if (AudioCtx) this.ctx = new AudioCtx();
                 }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume().catch(() => {});
+                }
             }
 
             playBeep(freq = 600, duration = 0.05, type = 'sine') {
@@ -344,17 +347,23 @@
                 if (!this.ctx) return;
 
                 try {
+                    const now = this.ctx.currentTime;
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
                     osc.type = type;
-                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-                    gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                    osc.frequency.setValueAtTime(freq, now);
+
+                    gain.gain.setValueAtTime(0.001, now);
+                    gain.gain.linearRampToValueAtTime(0.05, now + 0.008);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
                     osc.connect(gain);
                     gain.connect(this.ctx.destination);
-                    osc.start();
-                    osc.stop(this.ctx.currentTime + duration);
-                } catch(e) {}
+                    osc.start(now);
+                    osc.stop(now + duration + 0.01);
+                } catch (e) {
+                    console.warn('Audio synth error:', e);
+                }
             }
 
             playClick() { this.playBeep(800, 0.04, 'triangle'); }
@@ -765,12 +774,20 @@
             const progressPercent = document.getElementById('progress-percent');
             const charCount = document.getElementById('char-count');
 
-            // Sound Toggle
+            // 2. Sound Toggle (also stops active TTS if muted)
             const toggleSoundBtn = document.getElementById('toggle-sound-btn');
             toggleSoundBtn.addEventListener('click', () => {
                 sounds.enabled = !sounds.enabled;
                 toggleSoundBtn.classList.toggle('text-slate-500', !sounds.enabled);
-                sounds.playClick();
+                if (!sounds.enabled && 'speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    equalizer.classList.remove('speaking-active');
+                    if (avatar.state === 'TALKING') avatar.setState('IDLE');
+                }
+                if (sounds.enabled) {
+                    sounds.init();
+                    sounds.playClick();
+                }
             });
 
             // Scanlines Toggle
@@ -817,17 +834,25 @@
                 setTimeout(() => progressContainer.classList.add('hidden'), 2000);
             });
 
-            // Speech Recognition
+            // 3. Speech Recognition (error handling + audio unlock)
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             let recognition = null;
             let isListening = false;
 
+            function resetMicUI() {
+                isListening = false;
+                micBtn.classList.remove('mic-listening');
+                if (avatar.state === 'LISTENING') avatar.setState('IDLE');
+            }
+
             if (SpeechRecognition) {
                 recognition = new SpeechRecognition();
                 recognition.continuous = false;
+                recognition.interimResults = false;
                 recognition.lang = 'en-US';
 
                 recognition.onstart = () => {
+                    sounds.init();
                     isListening = true;
                     micBtn.classList.add('mic-listening');
                     statusText.innerText = 'LISTENING...';
@@ -836,47 +861,100 @@
                 };
 
                 recognition.onend = () => {
-                    isListening = false;
-                    micBtn.classList.remove('mic-listening');
-                    statusText.innerText = 'ONLINE';
-                    if (avatar.state === 'LISTENING') avatar.setState('IDLE');
+                    resetMicUI();
+                    if (statusText.innerText === 'LISTENING...') {
+                        statusText.innerText = 'ONLINE';
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    console.warn('SpeechRecognition error:', event.error);
+                    sounds.playError();
+                    resetMicUI();
+                    statusText.innerText = event.error === 'not-allowed' ? 'MIC BLOCKED' : 'ONLINE';
                 };
 
                 recognition.onresult = (event) => {
-                    const transcript = event.results[0][0].transcript;
-                    userInput.value = transcript;
-                    handleSend(transcript);
+                    const transcript = event.results?.[0]?.[0]?.transcript || '';
+                    if (transcript) {
+                        userInput.value = transcript;
+                        charCount.innerText = `${transcript.length} CHARS`;
+                        handleSend(transcript);
+                    }
                 };
             } else {
                 micBtn.style.display = 'none';
             }
 
             micBtn.addEventListener('click', () => {
+                sounds.init();
                 if (!recognition) return;
-                if (isListening) recognition.stop();
-                else recognition.start();
+                if (isListening) {
+                    recognition.stop();
+                } else {
+                    try {
+                        recognition.start();
+                    } catch (err) {
+                        console.warn('Recognition start failed:', err);
+                        resetMicUI();
+                    }
+                }
             });
 
-            // TTS Speech Synthesis Sync
+            // 4. TTS Speech Synthesis Sync (mute check + mobile safety guard)
             function speak(text) {
-                if ('speechSynthesis' in window) {
+                const finishSpeech = () => {
+                    equalizer.classList.remove('speaking-active');
+                    if (avatar.state === 'TALKING') avatar.setState('IDLE');
+                };
+
+                if (!sounds.enabled || !('speechSynthesis' in window)) {
+                    finishSpeech();
+                    return;
+                }
+
+                const cleanText = text
+                    .replace(/\[.*?\]/g, '')
+                    .replace(/```[\s\S]*?```/g, 'Code block outputted.')
+                    .trim();
+
+                if (!cleanText) {
+                    finishSpeech();
+                    return;
+                }
+
+                try {
                     window.speechSynthesis.cancel();
-                    const cleanText = text.replace(/\[.*?\]/g, '').replace(/```[\s\S]*?```/g, 'Code block outputted.');
                     const utterance = new SpeechSynthesisUtterance(cleanText);
-                    
+                    utterance.rate = 1.05;
+                    utterance.pitch = 1.15;
+
+                    const voices = window.speechSynthesis.getVoices();
+                    const preferredVoice = voices.find(v => /en/i.test(v.lang) && /female|zira|samantha|google/i.test(v.name))
+                        || voices.find(v => /en/i.test(v.lang));
+                    if (preferredVoice) utterance.voice = preferredVoice;
+
                     equalizer.classList.add('speaking-active');
                     avatar.setState('TALKING');
-                    
+
+                    const estimatedMs = Math.max(2500, cleanText.length * 75 + 1500);
+                    const safetyTimer = setTimeout(finishSpeech, estimatedMs);
+
                     utterance.onend = () => {
-                        equalizer.classList.remove('speaking-active');
-                        avatar.setState('IDLE');
+                        clearTimeout(safetyTimer);
+                        finishSpeech();
                     };
                     utterance.onerror = () => {
-                        equalizer.classList.remove('speaking-active');
-                        avatar.setState('IDLE');
+                        clearTimeout(safetyTimer);
+                        finishSpeech();
                     };
-                    
-                    window.speechSynthesis.speak(utterance);
+
+                    setTimeout(() => {
+                        window.speechSynthesis.speak(utterance);
+                    }, 50);
+                } catch (e) {
+                    console.warn('TTS error:', e);
+                    finishSpeech();
                 }
             }
 
@@ -893,10 +971,11 @@
                 return card.querySelector('.msg-content');
             }
 
-            // Handle Input Submission
+            // 5. Handle Input Submission (unlocks audio + clean state flow)
             async function handleSend(text) {
                 if (!text || !text.trim()) return;
 
+                sounds.init();
                 sounds.playClick();
                 userInput.value = '';
                 charCount.innerText = '0 CHARS';
@@ -944,9 +1023,14 @@
                 });
             });
 
-            // Clear Chat
+            // Clear Chat (also stops any active speech)
             document.getElementById('clear-chat-btn').addEventListener('click', () => {
                 sounds.playClick();
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                }
+                equalizer.classList.remove('speaking-active');
+                if (avatar.state === 'TALKING') avatar.setState('IDLE');
                 chatBox.innerHTML = `
                     <div class="hud-card p-3 rounded-lg cyber-corner">
                         <p class="font-orbitron text-xs text-cyan-400 mb-1">&gt; SYSTEM RESET</p>
