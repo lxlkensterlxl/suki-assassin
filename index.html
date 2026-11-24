@@ -1,67 +1,1337 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>SUKI - Cute Ninja Assassin 3D Studio</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SUKI // OS" />
+  <meta name="theme-color" content="#07040e" />
+  <meta name="description" content="SUKI // SHADOW-OS - Interactive Cyber-Assassin AI Companion" />
+  <title>SUKI // Cyber-Assassin AI Companion</title>
+  <style>
+    :root {
+      --bg-void: #07040e;
+      --bg-panel: rgba(16, 10, 30, 0.78);
+      --neon-purple: #a855f7;
+      --neon-fuchsia: #ec4899;
+      --neon-cyan: #22d3ee;
+      --cyber-silver: #94a3b8;
+      --text-main: #f3e8ff;
+      --text-dim: #a78bfa;
+      --border-glow: rgba(168, 85, 247, 0.45);
+      --safe-top: env(safe-area-inset-top, 12px);
+      --safe-bottom: env(safe-area-inset-bottom, 12px);
+    }
 
-    <!-- iOS Web App & PWA Formatting -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="SUKI AI">
-    <link rel="apple-touch-icon" href="https://placehold.co/192x192/0c0717/ec4899.png?text=SUKI">
-    <link rel="manifest" href="data:application/manifest+json;base64,ewogICJuYW1lIjogIlNVS0kgQ3liZXIgTmluamEgQUkiLAogICJzaG9ydF9uYW1lIjogIlNVS0kgQUkiLAogICJzdGFydF91cmwiOiAiLi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwNzA0MGQiLAogICJ0aGVtZV9jb2xvciI6ICIjMDcwNDBkIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiaHR0cHM6Ly9wbGFjZWhvbGQuY28vMTkyeDE5Mi8wYzA3MTcvZWM0ODk5LnBuZz90ZXh0PVNVS0kiLAogICAgICAic2l6ZXMiOiAiMTkyeDE5MiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIKICAgIH0KICBdCn0=">
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@0.6.4/lib/three-vrm.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .glass { background: rgba(15, 10, 26, 0.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-        .ninja-gradient { background: linear-gradient(135deg, #ec4899 0%, #a855f7 50%, #06b6d4 100%); }
-        .ninja-glow { box-shadow: 0 0 25px rgba(236, 72, 153, 0.45); }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #0b0714; }
-        ::-webkit-scrollbar-thumb { background: #26173a; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #ec4899; }
-    </style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      background: radial-gradient(circle at 50% 30%, #1c0d36 0%, #090512 65%, #040208 100%);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Background Canvas for Cyber Rain & Energy Shuriken Particles */
+    #fx-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Top Cyber HUD Header */
+    .hud-header {
+      position: relative;
+      z-index: 10;
+      padding: calc(var(--safe-top) + 8px) 16px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(180deg, rgba(7, 4, 14, 0.94) 0%, rgba(7, 4, 14, 0) 100%);
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .brand-tag {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--neon-cyan);
+      box-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-purple);
+      animation: pulseDot 2s infinite;
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: 1.8px;
+      background: linear-gradient(90deg, #fff, var(--neon-purple), var(--neon-fuchsia));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      white-space: nowrap;
+    }
+
+    .hud-controls {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .hud-btn {
+      background: rgba(28, 16, 52, 0.8);
+      border: 1px solid var(--border-glow);
+      color: var(--text-main);
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .hud-btn:hover {
+      border-color: var(--neon-cyan);
+    }
+
+    .hud-btn:active {
+      transform: scale(0.94);
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 12px rgba(34, 211, 238, 0.4);
+    }
+
+    .hud-btn.active {
+      background: rgba(168, 85, 247, 0.32);
+      border-color: var(--neon-fuchsia);
+      color: #fff;
+      box-shadow: 0 0 12px rgba(236, 72, 153, 0.25);
+    }
+
+    /* Animated Suki Stage */
+    .stage {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      overflow: hidden;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .suki-wrapper {
+      position: relative;
+      width: min(300px, 74vw);
+      height: min(400px, 54dvh);
+      margin-top: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: hoverFloat 4.2s ease-in-out infinite;
+      cursor: pointer;
+      transition: filter 0.25s ease;
+    }
+
+    .suki-wrapper.speaking {
+      filter: drop-shadow(0 0 22px rgba(236, 72, 153, 0.65));
+    }
+
+    .suki-wrapper.speaking #suki-mouth {
+      animation: mouthTalk 0.22s ease-in-out infinite alternate;
+    }
+
+    .suki-wrapper.attack-slash {
+      animation: ninjaDash 0.48s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Holographic Ground Ring */
+    .holo-ring {
+      position: absolute;
+      bottom: 6px;
+      width: 210px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px solid rgba(168, 85, 247, 0.65);
+      box-shadow: 0 0 25px rgba(168, 85, 247, 0.55), inset 0 0 15px rgba(34, 211, 238, 0.45);
+      transform: rotateX(68deg);
+      animation: ringSpin 8s linear infinite;
+      pointer-events: none;
+    }
+
+    /* Custom Uploaded Image Overlay Mode */
+    #custom-suki-img {
+      display: none;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 20px;
+      filter: drop-shadow(0 0 18px rgba(168, 85, 247, 0.65));
+      mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+    }
+
+    /* SVG Character Rig Animations */
+    #suki-svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.85));
+    }
+
+    .shuriken-spin {
+      transform-origin: 65px 125px;
+      animation: spinShuriken 3.5s linear infinite;
+    }
+
+    .shuriken-aura {
+      animation: pulseAura 1.8s ease-in-out infinite alternate;
+    }
+
+    .ear-twitch-l {
+      transform-origin: 128px 62px;
+      animation: earTwitch 6s infinite;
+    }
+
+    .ear-twitch-r {
+      transform-origin: 184px 62px;
+      animation: earTwitch 6s infinite 0.25s;
+    }
+
+    .katana-glow {
+      animation: bladePulse 2.4s ease-in-out infinite alternate;
+    }
+
+    .eye-blink {
+      transform-origin: 156px 94px;
+      animation: blinkAnim 5.2s infinite;
+    }
+
+    /* Floating Speech / HUD Subtitles */
+    .speech-bubble {
+      position: absolute;
+      top: 4px;
+      left: 16px;
+      right: 16px;
+      background: rgba(14, 9, 28, 0.88);
+      border: 1px solid rgba(168, 85, 247, 0.55);
+      border-left: 3px solid var(--neon-cyan);
+      border-radius: 14px;
+      padding: 10px 14px;
+      font-size: 13.5px;
+      line-height: 1.45;
+      color: #f5f3ff;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.65);
+      z-index: 8;
+      max-height: 112px;
+      overflow-y: auto;
+      user-select: text;
+      transition: border-color 0.25s ease;
+    }
+
+    .speech-bubble::-webkit-scrollbar {
+      width: 4px;
+    }
+    .speech-bubble::-webkit-scrollbar-thumb {
+      background: rgba(168, 85, 247, 0.5);
+      border-radius: 4px;
+    }
+
+    .speech-meta {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+      color: var(--neon-cyan);
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+    }
+
+    /* Action Dock & Chat Bar */
+    .bottom-dock {
+      position: relative;
+      z-index: 12;
+      background: linear-gradient(0deg, rgba(7, 4, 14, 0.98) 72%, rgba(7, 4, 14, 0) 100%);
+      padding: 6px 14px calc(var(--safe-bottom) + 10px);
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* Quick Task Chips */
+    .task-strip {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 2px 0;
+      scrollbar-width: none;
+    }
+    .task-strip::-webkit-scrollbar { display: none; }
+
+    .task-chip {
+      flex: 0 0 auto;
+      background: rgba(26, 15, 48, 0.88);
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      color: #e9d5ff;
+      border-radius: 999px;
+      padding: 7px 13px;
+      font-size: 12px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .task-chip:hover {
+      border-color: var(--neon-cyan);
+      background: rgba(42, 22, 78, 0.95);
+    }
+
+    .task-chip:active {
+      background: var(--neon-purple);
+      color: #fff;
+      transform: scale(0.96);
+    }
+
+    /* Chat Input Controls */
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(20, 12, 38, 0.92);
+      border: 1px solid var(--border-glow);
+      border-radius: 16px;
+      padding: 6px 8px 6px 14px;
+      box-shadow: 0 0 22px rgba(168, 85, 247, 0.22);
+      transition: border-color 0.2s ease;
+    }
+
+    .input-row:focus-within {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 24px rgba(34, 211, 238, 0.28);
+    }
+
+    #user-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-size: 15px;
+      user-select: text;
+      min-width: 0;
+    }
+
+    #user-input::placeholder {
+      color: rgba(167, 139, 250, 0.55);
+    }
+
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      transition: 0.2s;
+      flex-shrink: 0;
+    }
+
+    .icon-btn:active {
+      transform: scale(0.93);
+    }
+
+    #mic-btn {
+      background: rgba(236, 72, 153, 0.2);
+      color: var(--neon-fuchsia);
+      border: 1px solid rgba(236, 72, 153, 0.5);
+    }
+
+    #mic-btn.listening {
+      background: var(--neon-fuchsia);
+      color: #fff;
+      box-shadow: 0 0 18px var(--neon-fuchsia);
+      animation: pulseDot 1s infinite;
+    }
+
+    #send-btn {
+      background: linear-gradient(135deg, var(--neon-purple), var(--neon-fuchsia));
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 0 14px rgba(168, 85, 247, 0.45);
+    }
+
+    /* Settings Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 2, 10, 0.86);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 400px;
+      background: #120a24;
+      border: 1px solid var(--neon-purple);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 0 38px rgba(168, 85, 247, 0.4);
+      max-height: 90dvh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: 0.8px;
+      color: var(--neon-cyan);
+    }
+
+    .modal-field {
+      margin-bottom: 13px;
+    }
+
+    .modal-field label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-dim);
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+
+    .modal-field input,
+    .modal-field select {
+      width: 100%;
+      padding: 9px 11px;
+      border-radius: 10px;
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      background: #090512;
+      color: #fff;
+      font-size: 13px;
+      user-select: text;
+      outline: none;
+    }
+
+    .modal-field input:focus,
+    .modal-field select:focus {
+      border-color: var(--neon-cyan);
+    }
+
+    .modal-hint {
+      font-size: 11px;
+      color: var(--cyber-silver);
+      line-height: 1.4;
+      margin-bottom: 14px;
+      background: rgba(34, 211, 238, 0.08);
+      border: 1px solid rgba(34, 211, 238, 0.25);
+      padding: 8px 10px;
+      border-radius: 10px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--neon-purple), var(--neon-fuchsia));
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 15px;
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-secondary {
+      background: rgba(30, 20, 56, 0.9);
+      color: var(--text-main);
+      border: 1px solid var(--border-glow);
+      border-radius: 10px;
+      padding: 9px 13px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Keyframes */
+    @keyframes hoverFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-9px); }
+    }
+
+    @keyframes spinShuriken {
+      0% { transform: rotate(0deg) scale(1); }
+      50% { transform: rotate(180deg) scale(1.06); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+
+    @keyframes pulseAura {
+      0% { opacity: 0.45; }
+      100% { opacity: 0.95; }
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.25); opacity: 0.7; }
+    }
+
+    @keyframes blinkAnim {
+      0%, 94%, 100% { transform: scaleY(1); }
+      97% { transform: scaleY(0.08); }
+    }
+
+    @keyframes mouthTalk {
+      0% { transform: scaleY(0.4); }
+      100% { transform: scaleY(1.35); }
+    }
+
+    @keyframes earTwitch {
+      0%, 90%, 100% { transform: rotate(0deg); }
+      93% { transform: rotate(-6deg); }
+      96% { transform: rotate(3deg); }
+    }
+
+    @keyframes bladePulse {
+      0% { filter: drop-shadow(0 0 4px #a855f7); }
+      100% { filter: drop-shadow(0 0 14px #ec4899); }
+    }
+
+    @keyframes ringSpin {
+      0% { transform: rotateX(68deg) rotateZ(0deg); }
+      100% { transform: rotateX(68deg) rotateZ(360deg); }
+    }
+
+    @keyframes ninjaDash {
+      0% { transform: translateX(0) scale(1); }
+      30% { transform: translateX(-24px) rotate(-5deg) scale(1.06); }
+      65% { transform: translateX(20px) rotate(4deg) scale(1.08); }
+      100% { transform: translateX(0) scale(1); }
+    }
+  </style>
 </head>
-<body class="bg-[#07040d] text-gray-100 flex h-[100dvh] overflow-hidden">
+<body>
 
-    <!-- Ultra-Compact Icon Sidebar -->
-    <aside id="sidebar" class="w-14 bg-[#0c0717]/95 backdrop-blur-md border-r border-[#26153d] flex flex-col justify-between items-center py-3 shrink-0 transition-all duration-300 z-30">
-        <div class="flex flex-col items-center space-y-4 w-full">
-            <button id="reset-avatar-btn" class="w-9 h-9 rounded-full ninja-gradient p-0.5 flex items-center justify-center shrink-0 ninja-glow cursor-pointer" title="Reset to Default Kitsune Suki">
-                <div class="w-full h-full bg-[#0c0717] rounded-full flex items-center justify-center font-black text-red-500 text-xs">🦊</div>
-            </button>
+  <canvas id="fx-canvas"></canvas>
 
-            <div class="w-8 h-[1px] bg-[#26153d]"></div>
+  <!-- Top HUD -->
+  <header class="hud-header">
+    <div class="brand-tag">
+      <div class="status-dot"></div>
+      <div class="brand-title">SUKI // SHADOW-OS</div>
+    </div>
+    <div class="hud-controls">
+      <button type="button" class="hud-btn active" id="voice-toggle" title="Toggle Voice Synthesis">🔊 VOICE ON</button>
+      <label class="hud-btn" for="avatar-upload" title="Upload Custom Avatar Art">🖼️ ART</label>
+      <input type="file" id="avatar-upload" accept="image/*" style="display:none" />
+      <button type="button" class="hud-btn" id="settings-btn" title="Neural Link Settings">⚙️</button>
+    </div>
+  </header>
 
-            <!-- Compact Pipeline Status Icons -->
-            <div class="flex flex-col space-y-3 items-center">
-                <button id="mic-asr-btn" class="w-8 h-8 bg-[#140b24]/90 hover:bg-[#1e1136] rounded-xl border border-[#2d184d] flex items-center justify-center text-xs relative group transition" title="Toggle Voice Input (Speech Recognition)">
-                    <span id="asr-status-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span class="absolute left-16 bg-black/90 text-white text-[10px] px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">Mic / ASR Input</span>
-                </button>
-                <div class="w-8 h-8 bg-[#140b24]/90 rounded-xl border border-[#2d184d] flex items-center justify-center text-xs relative group" title="TTS Voice Synth Ready">
-                    <span id="tts-status-dot" class="w-2 h-2 rounded-full bg-pink-400"></span>
-                    <span class="absolute left-16 bg-black/90 text-white text-[10px] px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">TTS: WebSpeech Ready</span>
-                </div>
-            </div>
-        </div>
+  <!-- Main Animated Character Stage -->
+  <main class="stage">
+    <div class="speech-bubble" id="speech-box">
+      <div class="speech-meta">
+        <span id="mode-badge">UNIT: SUKI-09 // SHADOW ENGINE</span>
+        <span id="clock-hud">--:--</span>
+      </div>
+      <div id="speech-text">Shadow link established. Ready for tactical ops, reminders, quick comms, or recon. Tap me or speak your command.</div>
+    </div>
 
-        <!-- Compact Footer Controls -->
-        <div class="flex flex-col space-y-2 items-center w-full px-1 pb-safe">
-            <button id="install-ios-btn" class="w-9 h-9 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-300 rounded-xl border border-emerald-500/30 flex items-center justify-center transition group relative" title="Install to iPhone (iOS WebApp)">
-                <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                <span class="absolute left-16 bg-black/90 text-white text-[10px] px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">iPhone PWA</span>
-            </button>
-            <button id="open-vrm-presets-btn" class="w-9 h-9 bg-purple-600/10 hover:bg-purple-600/20 text-purple-300 rounded-xl border border-purple-500/30 flex items-center justify-center transition group relative" title="Custom VRMs">
-                <svg class="w-4 h-4 text-purple-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                <span class="absolute left-16 bg-black/90 text-white text-[10px] px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50">Custom VRMs</span>
-            </button>
-            <button id="open-settings-btn" class="w-9 h-9 bg-pink-600/10 hover:bg-pink-600/20 text-pink-300 rounded-xl border border-pink-500/30 flex items-center justify-center transition group relative" title="Ninja Config">
-                <svg class="w-4 h-4 text-pink-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.57
+    <div class="suki-wrapper" id="suki-avatar" title="Tap Suki to interact">
+      <div class="holo-ring"></div>
+      <img id="custom-suki-img" alt="Suki Cyber Assassin" />
+
+      <!-- Complete Animated Vector Avatar Rig -->
+      <svg id="suki-svg" viewBox="0 0 320 440" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="purpleHair" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#140c24" />
+            <stop offset="55%" stop-color="#2e1065" />
+            <stop offset="100%" stop-color="#a855f7" />
+          </linearGradient>
+          <linearGradient id="cyberArmor" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#475569" />
+            <stop offset="50%" stop-color="#1e293b" />
+            <stop offset="100%" stop-color="#0f172a" />
+          </linearGradient>
+          <linearGradient id="neonBlade" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#ec4899" />
+            <stop offset="50%" stop-color="#a855f7" />
+            <stop offset="100%" stop-color="#22d3ee" />
+          </linearGradient>
+          <radialGradient id="shurikenGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#ec4899" stop-opacity="0.85" />
+            <stop offset="60%" stop-color="#7e22ce" stop-opacity="0.3" />
+            <stop offset="100%" stop-color="#7e22ce" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+
+        <!-- Back Hair -->
+        <path d="M104,74 Q82,148 96,216 Q156,232 216,216 Q230,148 208,74 Z" fill="url(#purpleHair)" />
+
+        <!-- Floating Neon Energy Shuriken (Right Hand / Viewer Left) -->
+        <circle cx="65" cy="125" r="44" fill="url(#shurikenGlow)" class="shuriken-aura" />
+        <g class="shuriken-spin">
+          <path d="M65,86 L73,112 L102,108 L80,126 L94,152 L67,138 L46,158 L54,130 L28,118 L56,114 Z"
+                fill="#1e1b4b" stroke="#d946ef" stroke-width="2.2" />
+          <circle cx="65" cy="125" r="7" fill="#090512" stroke="#22d3ee" stroke-width="2" />
+        </g>
+
+        <!-- Cybernetic Right Arm (Raised toward Shuriken) -->
+        <path d="M122,155 L92,182 L68,154" fill="none" stroke="url(#cyberArmor)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M122,155 L92,182 L68,154" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="6 4" />
+        <circle cx="66" cy="150" r="8" fill="#d946ef" opacity="0.9" />
+
+        <!-- Torso & Tactical Crop Top -->
+        <path d="M126,142 L186,142 L180,235 L132,235 Z" fill="#f1d5d1" />
+        <!-- Cybernetic Rib Plates -->
+        <path d="M126,185 L138,195 L134,232 L126,232 Z" fill="#334155" />
+        <path d="M186,185 L174,195 L178,232 L186,232 Z" fill="#334155" />
+        <!-- Black Tactical Crop Top with Neon Trim -->
+        <path d="M123,140 L189,140 L184,186 L128,186 Z" fill="#111827" stroke="#a855f7" stroke-width="1.5" />
+        <path d="M140,148 Q156,162 172,148" fill="#f1d5d1" />
+
+        <!-- Tactical Cargo Pants & Legs -->
+        <path d="M130,232 L182,232 L194,340 L166,340 L156,275 L146,340 L118,340 Z" fill="#18181b" stroke="#3f3f46" stroke-width="1.5" />
+        <!-- Neon Leg Seams -->
+        <line x1="127" y1="245" x2="122" y2="335" stroke="#a855f7" stroke-width="2" />
+        <line x1="185" y1="245" x2="190" y2="335" stroke="#a855f7" stroke-width="2" />
+        <!-- Utility Belt & Thigh Pouches -->
+        <rect x="128" y="228" width="56" height="10" rx="2" fill="#09090b" stroke="#64748b" stroke-width="1.5" />
+        <rect x="151" y="227" width="10" height="12" rx="2" fill="#475569" />
+        <rect x="114" y="252" width="14" height="24" rx="3" fill="#1f2937" stroke="#a855f7" stroke-width="1" />
+        <rect x="184" y="252" width="14" height="24" rx="3" fill="#1f2937" stroke="#a855f7" stroke-width="1" />
+        <!-- Knee Pads -->
+        <rect x="120" y="302" width="22" height="18" rx="5" fill="#334155" stroke="#a855f7" stroke-width="1.2" />
+        <rect x="170" y="302" width="22" height="18" rx="5" fill="#334155" stroke="#a855f7" stroke-width="1.2" />
+
+        <!-- Combat Boots -->
+        <path d="M118,340 L146,340 L148,402 L106,402 L112,385 Z" fill="#0f172a" stroke="#7e22ce" stroke-width="1.5" />
+        <path d="M166,340 L194,340 L202,385 L208,402 L164,402 Z" fill="#0f172a" stroke="#7e22ce" stroke-width="1.5" />
+
+        <!-- Cybernetic Left Arm & Shoulder Node -->
+        <path d="M190,152 L214,205 L206,248" fill="none" stroke="url(#cyberArmor)" stroke-width="16" stroke-linecap="round" />
+        <circle cx="195" cy="156" r="11" fill="#334155" stroke="#94a3b8" stroke-width="1.5" />
+        <circle cx="195" cy="156" r="5" fill="#ec4899" />
+
+        <!-- Neon Cyber Katana -->
+        <g class="katana-glow">
+          <line x1="226" y1="212" x2="202" y2="256" stroke="#1e1b4b" stroke-width="7" stroke-linecap="round" />
+          <line x1="226" y1="212" x2="202" y2="256" stroke="#d946ef" stroke-width="2" stroke-dasharray="4 4" />
+          <ellipse cx="201" cy="257" rx="11" ry="4" transform="rotate(28 201 257)" fill="#475569" />
+          <polygon points="198,260 204,263 134,394 128,390" fill="url(#neonBlade)" />
+        </g>
+
+        <!-- Neck & Cyber Collar -->
+        <rect x="148" y="124" width="16" height="20" fill="#1e1b4b" />
+        <rect x="145" y="131" width="22" height="5" rx="2" fill="#22d3ee" opacity="0.85" />
+
+        <!-- Head & Face -->
+        <path d="M126,86 Q126,128 156,132 Q186,128 186,86 Q186,58 156,58 Q126,58 126,86 Z" fill="#f5dcd6" />
+
+        <!-- Cybernetic Cat Ears -->
+        <g class="ear-twitch-l">
+          <polygon points="122,68 114,30 145,54" fill="#1e293b" stroke="#64748b" stroke-width="2" />
+          <polygon points="125,63 120,40 139,55" fill="#ec4899" opacity="0.85" />
+          <line x1="118" y1="48" x2="132" y2="56" stroke="#22d3ee" stroke-width="1.5" />
+        </g>
+        <g class="ear-twitch-r">
+          <polygon points="190,68 198,30 167,54" fill="#1e293b" stroke="#64748b" stroke-width="2" />
+          <polygon points="187,63 192,40 173,55" fill="#ec4899" opacity="0.85" />
+          <line x1="194" y1="48" x2="180" y2="56" stroke="#22d3ee" stroke-width="1.5" />
+        </g>
+
+        <!-- Cyber Cheek Markings -->
+        <path d="M130,104 L138,108 L134,113" fill="none" stroke="#a855f7" stroke-width="1.6" stroke-linecap="round" />
+        <path d="M182,104 L174,108 L178,113" fill="none" stroke="#a855f7" stroke-width="1.6" stroke-linecap="round" />
+
+        <!-- Glowing Cyberpunk Eyes (with Blink) -->
+        <g class="eye-blink">
+          <!-- Left Eye -->
+          <ellipse cx="142" cy="94" rx="7.5" ry="6.5" fill="#1e1b4b" />
+          <circle cx="142" cy="94" r="4.8" fill="#22d3ee" />
+          <circle cx="142" cy="94" r="2.2" fill="#090512" />
+          <circle cx="140" cy="92" r="1.6" fill="#ffffff" />
+          <!-- Right Eye -->
+          <ellipse cx="170" cy="94" rx="7.5" ry="6.5" fill="#1e1b4b" />
+          <circle cx="170" cy="94" r="4.8" fill="#ec4899" />
+          <circle cx="170" cy="94" r="2.2" fill="#090512" />
+          <circle cx="168" cy="92" r="1.6" fill="#ffffff" />
+        </g>
+
+        <!-- Eyebrows -->
+        <path d="M133,84 Q142,81 149,85" fill="none" stroke="#2e1065" stroke-width="2" stroke-linecap="round" />
+        <path d="M179,84 Q170,81 163,85" fill="none" stroke="#2e1065" stroke-width="2" stroke-linecap="round" />
+
+        <!-- Nose & Animated Mouth -->
+        <path d="M155,101 L157,104" stroke="#c08497" stroke-width="1.5" stroke-linecap="round" />
+        <ellipse id="suki-mouth" cx="156" cy="115" rx="5.5" ry="2.2" fill="#be185d" style="transform-origin: 156px 115px;" />
+
+        <!-- Front Hair Bangs & Side Locks -->
+        <path d="M122,84 Q124,52 156,52 Q188,52 190,84 Q180,68 171,82 Q164,66 156,84 Q148,66 141,82 Q132,68 122,84 Z" fill="url(#purpleHair)" />
+        <!-- Side Face Framing Strands -->
+        <path d="M123,78 Q116,115 124,148 Q128,125 127,92 Z" fill="url(#purpleHair)" />
+        <path d="M189,78 Q196,115 188,148 Q184,125 185,92 Z" fill="url(#purpleHair)" />
+        <!-- Neon Visor Hairpin -->
+        <rect x="131" y="69" width="12" height="3.5" rx="1.5" transform="rotate(-14 131 69)" fill="#22d3ee" />
+      </svg>
+    </div>
+  </main>
+
+  <!-- Bottom Action Dock -->
+  <footer class="bottom-dock">
+    <!-- Quick Task Chips -->
+    <div class="task-strip" id="task-strip">
+      <button type="button" class="task-chip" data-cmd="Execute shadow slash">⚡ Slash Attack</button>
+      <button type="button" class="task-chip" data-cmd="Set a tactical reminder in 15 minutes">⏰ Set Reminder</button>
+      <button type="button" class="task-chip" data-cmd="Draft a quick encrypted message">💬 Quick Text</button>
+      <button type="button" class="task-chip" data-cmd="Run local tactical recon scan">📍 Tactical Recon</button>
+      <button type="button" class="task-chip" data-cmd="Report Shadow-OS system status">🔋 System Status</button>
+      <button type="button" class="task-chip" data-cmd="Give me a cyberpunk fortune">🎲 Cyber Fortune</button>
+    </div>
+
+    <!-- Chat Input Row -->
+    <form class="input-row" id="chat-form" autocomplete="off">
+      <input type="text" id="user-input" placeholder="Transmit command to Suki..." aria-label="Command input" />
+      <button type="button" class="icon-btn" id="mic-btn" title="Voice Command (Speech-to-Text)">🎙️</button>
+      <button type="submit" class="icon-btn" id="send-btn" title="Send Command">➤</button>
+    </form>
+  </footer>
+
+  <!-- Neural Settings Modal -->
+  <div class="modal-backdrop" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-title">⚙️ SHADOW-OS // NEURAL CONFIG</h3>
+        <button type="button" class="hud-btn" id="close-modal-btn">✕</button>
+      </div>
+
+      <div class="modal-hint">
+        Works 100% out-of-the-box using Suki's built-in <strong>Shadow Engine</strong>. Optionally add an OpenAI-compatible endpoint &amp; key below for live cloud LLM responses.
+      </div>
+
+      <div class="modal-field">
+        <label for="persona-mode">Personality Protocol</label>
+        <select id="persona-mode">
+          <option value="tactical">Tactical Cyber-Assassin (Default)</option>
+          <option value="playful">Playful Neko-Hacker</option>
+          <option value="stoic">Cold Shadow Operative</option>
+        </select>
+      </div>
+
+      <div class="modal-field">
+        <label for="api-endpoint">Optional LLM API Endpoint (OpenAI Compatible)</label>
+        <input type="url" id="api-endpoint" placeholder="https://api.openai.com/v1/chat/completions" />
+      </div>
+
+      <div class="modal-field">
+        <label for="api-key">Optional API Key (Stored locally in browser)</label>
+        <input type="password" id="api-key" placeholder="sk-..." />
+      </div>
+
+      <div class="modal-field">
+        <label for="api-model">Model Name</label>
+        <input type="text" id="api-model" placeholder="gpt-4o-mini" />
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="reset-avatar-btn">Reset Avatar</button>
+        <button type="button" class="btn-primary" id="save-settings-btn">Save Config</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // ==========================================
+      // 1. STATE & STORAGE MANAGEMENT
+      // ==========================================
+      const STORAGE_KEYS = {
+        VOICE: 'suki_voice_enabled',
+        AVATAR: 'suki_custom_avatar',
+        CONFIG: 'suki_neural_config'
+      };
+
+      const state = {
+        voiceEnabled: localStorage.getItem(STORAGE_KEYS.VOICE) !== 'false',
+        isListening: false,
+        isSpeaking: false,
+        config: {
+          persona: 'tactical',
+          endpoint: '',
+          apiKey: '',
+          model: 'gpt-4o-mini'
+        }
+      };
+
+      try {
+        const savedCfg = JSON.parse(localStorage.getItem(STORAGE_KEYS.CONFIG));
+        if (savedCfg && typeof savedCfg === 'object') {
+          state.config = Object.assign(state.config, savedCfg);
+        }
+      } catch (e) {
+        console.warn('Config parse skipped:', e);
+      }
+
+      // ==========================================
+      // 2. DOM REFERENCES
+      // ==========================================
+      const dom = {
+        canvas: document.getElementById('fx-canvas'),
+        voiceToggle: document.getElementById('voice-toggle'),
+        avatarUpload: document.getElementById('avatar-upload'),
+        settingsBtn: document.getElementById('settings-btn'),
+        closeModalBtn: document.getElementById('close-modal-btn'),
+        saveSettingsBtn: document.getElementById('save-settings-btn'),
+        resetAvatarBtn: document.getElementById('reset-avatar-btn'),
+        settingsModal: document.getElementById('settings-modal'),
+        sukiAvatar: document.getElementById('suki-avatar'),
+        sukiSvg: document.getElementById('suki-svg'),
+        customImg: document.getElementById('custom-suki-img'),
+        speechText: document.getElementById('speech-text'),
+        modeBadge: document.getElementById('mode-badge'),
+        clockHud: document.getElementById('clock-hud'),
+        taskStrip: document.getElementById('task-strip'),
+        chatForm: document.getElementById('chat-form'),
+        userInput: document.getElementById('user-input'),
+        micBtn: document.getElementById('mic-btn'),
+        personaMode: document.getElementById('persona-mode'),
+        apiEndpoint: document.getElementById('api-endpoint'),
+        apiKey: document.getElementById('api-key'),
+        apiModel: document.getElementById('api-model')
+      };
+
+      // ==========================================
+      // 3. LIVE HUD CLOCK
+      // ==========================================
+      function updateClock() {
+        const now = new Date();
+        const hrs = String(now.getHours()).padStart(2, '0');
+        const mins = String(now.getMinutes()).padStart(2, '0');
+        const secs = String(now.getSeconds()).padStart(2, '0');
+        dom.clockHud.textContent = `${hrs}:${mins}:${secs}`;
+      }
+      updateClock();
+      setInterval(updateClock, 1000);
+
+      // ==========================================
+      // 4. INTERACTIVE CYBER CANVAS (RAIN + BURSTS)
+      // ==========================================
+      const ctx = dom.canvas.getContext('2d');
+      let width = 0;
+      let height = 0;
+      const rainDrops = [];
+      const particles = [];
+
+      function resizeCanvas() {
+        width = dom.canvas.width = window.innerWidth;
+        height = dom.canvas.height = window.innerHeight;
+      }
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+
+      // Initialize ambient cyber rain & floating embers
+      for (let i = 0; i < 55; i++) {
+        rainDrops.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          len: 10 + Math.random() * 18,
+          speed: 2.2 + Math.random() * 4.5,
+          color: Math.random() > 0.35 ? 'rgba(168, 85, 247, 0.28)' : 'rgba(34, 211, 238, 0.25)'
+        });
+      }
+
+      function spawnBurst(x, y, count = 22) {
+        const palette = ['#ec4899', '#a855f7', '#22d3ee', '#f3e8ff'];
+        for (let i = 0; i < count; i++) {
+          const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+          const speed = 2 + Math.random() * 6;
+          particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 1.0,
+            decay: 0.02 + Math.random() * 0.025,
+            size: 2 + Math.random() * 3.5,
+            color: palette[Math.floor(Math.random() * palette.length)]
+          });
+        }
+      }
+
+      function animateCanvas() {
+        ctx.clearRect(0, 0, width, height);
+
+        // Draw neon cyber rain
+        ctx.lineWidth = 1.2;
+        for (let i = 0; i < rainDrops.length; i++) {
+          const d = rainDrops[i];
+          ctx.strokeStyle = d.color;
+          ctx.beginPath();
+          ctx.moveTo(d.x, d.y);
+          ctx.lineTo(d.x - 1.5, d.y + d.len);
+          ctx.stroke();
+
+          d.y += d.speed;
+          if (d.y > height) {
+            d.y = -d.len;
+            d.x = Math.random() * width;
+          }
+        }
+
+        // Draw interactive shuriken/slash particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          ctx.globalAlpha = Math.max(0, p.life);
+          ctx.fillStyle = p.color;
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vx *= 0.96;
+          p.vy *= 0.96;
+          p.life -= p.decay;
+
+          if (p.life <= 0) {
+            particles.splice(i, 1);
+          }
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+
+        requestAnimationFrame(animateCanvas);
+      }
+      animateCanvas();
+
+      // ==========================================
+      // 5. VOICE SYNTHESIS (TTS) & LIP-SYNC
+      // ==========================================
+      function updateVoiceUI() {
+        if (state.voiceEnabled) {
+          dom.voiceToggle.classList.add('active');
+          dom.voiceToggle.textContent = '🔊 VOICE ON';
+        } else {
+          dom.voiceToggle.classList.remove('active');
+          dom.voiceToggle.textContent = '🔇 MUTED';
+          if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+          }
+          dom.sukiAvatar.classList.remove('speaking');
+        }
+      }
+      updateVoiceUI();
+
+      dom.voiceToggle.addEventListener('click', () => {
+        state.voiceEnabled = !state.voiceEnabled;
+        localStorage.setItem(STORAGE_KEYS.VOICE, String(state.voiceEnabled));
+        updateVoiceUI();
+      });
+
+      function speakText(text) {
+        dom.speechText.textContent = text;
+        if (!state.voiceEnabled || !('speechSynthesis' in window)) {
+          // Visual speaking pulse even when muted
+          dom.sukiAvatar.classList.add('speaking');
+          setTimeout(() => dom.sukiAvatar.classList.remove('speaking'), Math.min(2600, text.length * 45));
+          return;
+        }
+
+        try {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(text);
+          const voices = window.speechSynthesis.getVoices();
+          const preferred = voices.find(v =>
+            /Samantha|Victoria|Karen|Zira|Google US English|Female/i.test(v.name)
+          );
+          if (preferred) utterance.voice = preferred;
+          utterance.pitch = state.config.persona === 'playful' ? 1.22 : 1.06;
+          utterance.rate = 1.04;
+
+          utterance.onstart = () => dom.sukiAvatar.classList.add('speaking');
+          utterance.onend = () => dom.sukiAvatar.classList.remove('speaking');
+          utterance.onerror = () => dom.sukiAvatar.classList.remove('speaking');
+
+          window.speechSynthesis.speak(utterance);
+        } catch (err) {
+          console.warn('TTS unavailable:', err);
+        }
+      }
+
+      // Preload voices on browsers that populate asynchronously
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+      }
+
+      // ==========================================
+      // 6. SUKI INTERACTIVE ANIMATIONS & ART UPLOAD
+      // ==========================================
+      function triggerSlashAnimation(burstX, burstY) {
+        dom.sukiAvatar.classList.remove('attack-slash');
+        void dom.sukiAvatar.offsetWidth; // Force reflow
+        dom.sukiAvatar.classList.add('attack-slash');
+
+        const rect = dom.sukiAvatar.getBoundingClientRect();
+        const cx = burstX || rect.left + rect.width / 2;
+        const cy = burstY || rect.top + rect.height / 2;
+        spawnBurst(cx, cy, 28);
+      }
+
+      const tapQuips = {
+        tactical: [
+          "Perimeter secure. Keep your blade sharp and your guard up.",
+          "Kinetic sensors active. Need a target marked or a schedule synced?",
+          "Shuriken capacitor at 100%. Say the word and I strike.",
+          "Neural link steady. What's our next objective, Commander?"
+        ],
+        playful: [
+          "Nya~! Watch the ears, they're high-gain radar receivers!",
+          "Hehe, fast reflexes! Want me to hack the mainframe or set a timer?",
+          "Energy shuriken spun up and ready! Give me a fun command!"
+        ],
+        stoic: [
+          "State your directive.",
+          "Shadow protocols engaged. Awaiting coordinates.",
+          "Silence is our sharpest weapon. Speak when ready."
+        ]
+      };
+
+      dom.sukiAvatar.addEventListener('click', (e) => {
+        triggerSlashAnimation(e.clientX, e.clientY);
+        const pool = tapQuips[state.config.persona] || tapQuips.tactical;
+        const line = pool[Math.floor(Math.random() * pool.length)];
+        speakText(line);
+      });
+
+      // Load saved custom avatar if present
+      function applySavedAvatar() {
+        const savedImg = localStorage.getItem(STORAGE_KEYS.AVATAR);
+        if (savedImg) {
+          dom.customImg.src = savedImg;
+          dom.customImg.style.display = 'block';
+          dom.sukiSvg.style.display = 'none';
+        } else {
+          dom.customImg.style.display = 'none';
+          dom.sukiSvg.style.display = 'block';
+        }
+      }
+      applySavedAvatar();
+
+      dom.avatarUpload.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (evt) {
+          const dataUrl = evt.target.result;
+          dom.customImg.src = dataUrl;
+          dom.customImg.style.display = 'block';
+          dom.sukiSvg.style.display = 'none';
+          try {
+            localStorage.setItem(STORAGE_KEYS.AVATAR, dataUrl);
+          } catch (storageErr) {
+            console.warn('Image too large for localStorage persistence, active for session only.');
+          }
+          triggerSlashAnimation();
+          speakText("Custom holographic projection loaded. Visual matrix updated.");
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // ==========================================
+      // 7. HYBRID AI BRAIN (LOCAL + OPTIONAL API)
+      // ==========================================
+      function updateModeBadge() {
+        const hasApi = Boolean(state.config.endpoint && state.config.apiKey);
+        dom.modeBadge.textContent = hasApi
+          ? `UNIT: SUKI-09 // CLOUD NEURAL (${state.config.model})`
+          : `UNIT: SUKI-09 // SHADOW ENGINE (${state.config.persona.toUpperCase()})`;
+      }
+      updateModeBadge();
+
+      function generateLocalResponse(prompt) {
+        const q = prompt.toLowerCase();
+
+        if (q.includes('slash') || q.includes('attack') || q.includes('shuriken') || q.includes('katana')) {
+          triggerSlashAnimation();
+          return "Plasma katana drawn—crimson arc executed! Area cleared of hostiles.";
+        }
+        if (q.includes('reminder') || q.includes('remind') || q.includes('timer')) {
+          const minsMatch = q.match(/(\d+)\s*(min|minute|sec|second)/);
+          const delayMs = minsMatch
+            ? parseInt(minsMatch[1], 10) * (minsMatch[2].startsWith('sec') ? 1000 : 60000)
+            : 15 * 60000;
+          const label = minsMatch ? `${minsMatch[1]} ${minsMatch[2]}(s)` : '15 minutes';
+          setTimeout(() => {
+            triggerSlashAnimation();
+            speakText(`Tactical alert: Your ${label} countdown has reached zero.`);
+          }, Math.min(delayMs, 2147483647));
+          return `Tactical timer locked for ${label}. I will ping your HUD when time expires.`;
+        }
+        if (q.includes('text') || q.includes('message') || q.includes('sms')) {
+          return "Encrypted comms buffer ready: 'On my way—stay sharp, ETA 10 minutes.' Ready to dispatch whenever you are.";
+        }
+        if (q.includes('recon') || q.includes('scan') || q.includes('location')) {
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local Sector';
+          return `Recon complete: Operating in ${tz}. Network link nominal, viewport ${window.innerWidth}x${window.innerHeight}px locked, zero intrusions detected.`;
+        }
+        if (q.includes('status') || q.includes('battery') || q.includes('system')) {
+          const cores = navigator.hardwareConcurrency || 4;
+          const online = navigator.onLine ? 'ONLINE' : 'OFFLINE-STEALTH';
+          return `Shadow-OS Diagnostics: Link ${online} | ${cores} Neural Threads active | Shuriken Core 99.8% | Voice Module ${state.voiceEnabled ? 'ACTIVE' : 'STANDBY'}.`;
+        }
+        if (q.includes('fortune') || q.includes('luck') || q.includes('oracle')) {
+          const fortunes = [
+            "Cyber Oracle: A bold move in the next 24 hours unlocks an unexpected ally.",
+            "Cyber Oracle: Trust your instincts over the noise—clarity arrives after midnight.",
+            "Cyber Oracle: Your focus is razor-sharp today. Strike first on your hardest task."
+          ];
+          return fortunes[Math.floor(Math.random() * fortunes.length)];
+        }
+        if (q.includes('hello') || q.includes('hi ') || q === 'hi' || q.includes('hey')) {
+          return "Shadow link online. Suki reporting in—ready to assist with tasks, recon, or tactical banter.";
+        }
+
+        const fallbacks = {
+          tactical: `Directive logged: "${prompt}". Shadow Engine processed your input—say 'Slash', 'Recon', 'System Status', or connect a cloud API key in ⚙️ for deep neural analysis.`,
+          playful: `Ooh, "${prompt}"! I've logged that into my cyber-deck. Want me to run a recon scan or throw an energy shuriken next?`,
+          stoic: `Acknowledged: "${prompt}". Awaiting your next tactical instruction.`
+        };
+        return fallbacks[state.config.persona] || fallbacks.tactical;
+      }
+
+      async function handleCommand(rawText) {
+        const text = rawText.trim();
+        if (!text) return;
+
+        dom.userInput.value = '';
+        triggerSlashAnimation();
+
+        // If user configured a custom OpenAI-compatible endpoint + key, query it
+        if (state.config.endpoint && state.config.apiKey) {
+          dom.speechText.textContent = 'Routing through encrypted neural relay...';
+          try {
+            const systemPrompts = {
+              tactical: 'You are Suki, a sleek cyber-assassin AI companion in SHADOW-OS. Keep replies concise (1-3 sentences), sharp, loyal, and stylish.',
+              playful: 'You are Suki, an energetic cyber-neko hacker AI companion. Keep replies concise (1-3 sentences), witty, and upbeat.',
+              stoic: 'You are Suki, a stoic shadow operative AI. Keep replies ultra-concise (1-2 sentences), calm, and tactical.'
+            };
+
+            const res = await fetch(state.config.endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${state.config.apiKey}`
+              },
+              body: JSON.stringify({
+                model: state.config.model || 'gpt-4o-mini',
+                messages: [
+                  { role: 'system', content: systemPrompts[state.config.persona] || systemPrompts.tactical },
+                  { role: 'user', content: text }
+                ],
+                max_tokens: 140
+              })
+            });
+
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const reply = data.choices?.[0]?.message?.content?.trim();
+            if (reply) {
+              speakText(reply);
+              return;
+            }
+          } catch (err) {
+            console.warn('Cloud API fallback to local Shadow Engine:', err);
+          }
+        }
+
+        // Default instant local Shadow Engine response
+        const localReply = generateLocalResponse(text);
+        speakText(localReply);
+      }
+
+      dom.chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        handleCommand(dom.userInput.value);
+      });
+
+      dom.taskStrip.addEventListener('click', (e) => {
+        const chip = e.target.closest('.task-chip');
+        if (!chip) return;
+        const cmd = chip.getAttribute('data-cmd');
+        if (cmd) handleCommand(cmd);
+      });
+
+      // ==========================================
+      // 8. SPEECH-TO-TEXT (MICROPHONE)
+      // ==========================================
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      let recognition = null;
+
+      if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = () => {
+          state.isListening = true;
+          dom.micBtn.classList.add('listening');
+          dom.userInput.placeholder = 'Listening to voice channel...';
+        };
+
+        recognition.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          if (transcript) {
+            handleCommand(transcript);
+          }
+        };
+
+        recognition.onerror = () => {
+          state.isListening = false;
+          dom.micBtn.classList.remove('listening');
+          dom.userInput.placeholder = 'Transmit command to Suki...';
+        };
+
+        recognition.onend = () => {
+          state.isListening = false;
+          dom.micBtn.classList.remove('listening');
+          dom.userInput.placeholder = 'Transmit command to Suki...';
+        };
+      }
+
+      dom.micBtn.addEventListener('click', () => {
+        if (!recognition) {
+          speakText('Voice input is not supported in this browser. Type your command below.');
+          dom.userInput.focus();
+          return;
+        }
+        if (state.isListening) {
+          recognition.stop();
+        } else {
+          try {
+            recognition.start();
+          } catch (e) {
+            console.warn('Mic start error:', e);
+          }
+        }
+      });
+
+      // ==========================================
+      // 9. SETTINGS MODAL HANDLERS
+      // ==========================================
+      dom.settingsBtn.addEventListener('click', () => {
+        dom.personaMode.value = state.config.persona;
+        dom.apiEndpoint.value = state.config.endpoint;
+        dom.apiKey.value = state.config.apiKey;
+        dom.apiModel.value = state.config.model;
+        dom.settingsModal.classList.add('open');
+      });
+
+      dom.closeModalBtn.addEventListener('click', () => {
+        dom.settingsModal.classList.remove('open');
+      });
+
+      dom.settingsModal.addEventListener('click', (e) => {
+        if (e.target === dom.settingsModal) {
+          dom.settingsModal.classList.remove('open');
+        }
+      });
+
+      dom.saveSettingsBtn.addEventListener('click', () => {
+        state.config.persona = dom.personaMode.value;
+        state.config.endpoint = dom.apiEndpoint.value.trim();
+        state.config.apiKey = dom.apiKey.value.trim();
+        state.config.model = dom.apiModel.value.trim() || 'gpt-4o-mini';
+
+        localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(state.config));
+        updateModeBadge();
+        dom.settingsModal.classList.remove('open');
+        triggerSlashAnimation();
+        speakText('Neural configuration saved and synchronized.');
+      });
+
+      dom.resetAvatarBtn.addEventListener('click', () => {
+        localStorage.removeItem(STORAGE_KEYS.AVATAR);
+        dom.avatarUpload.value = '';
+        applySavedAvatar();
+        dom.settingsModal.classList.remove('open');
+        triggerSlashAnimation();
+        speakText('Default cyber-assassin vector rig restored.');
+      });
+    })();
+  </script>
+</body>
+</html>
