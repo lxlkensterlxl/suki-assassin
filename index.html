@@ -14,11 +14,16 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     
-    <!-- WebLLM Engine CDN Module Import -->
+    <!-- WebLLM Engine CDN Module Import with Error Guard -->
     <script type="module">
-        import * as webLLM from "https://esm.run/@mlc-ai/web-llm";
-        window.webLLM = webLLM;
-        window.dispatchEvent(new CustomEvent('mlc-loaded'));
+        try {
+            const webLLM = await import("https://esm.run/@mlc-ai/web-llm");
+            window.webLLM = webLLM;
+            window.dispatchEvent(new CustomEvent('mlc-loaded'));
+        } catch (err) {
+            console.warn("WebLLM CDN module failed to load:", err);
+            window.webLLMError = err;
+        }
     </script>
 
     <script>
@@ -166,7 +171,7 @@
 </head>
 <body class="min-h-dvh flex items-center justify-center p-0 sm:p-4 bg-slate-950">
 
-    <!-- Screen Layout Wrapper: Frame view or Expanded Fullscreen -->
+    <!-- Screen Layout Wrapper -->
     <div id="app-viewport" class="relative w-full max-w-[440px] sm:max-w-[480px] h-[100dvh] sm:h-[910px] bg-black sm:rounded-[48px] p-2 sm:p-3 shadow-[0_0_70px_rgba(255,42,141,0.3)] border-0 sm:border-4 border-slate-900 flex flex-col overflow-hidden transition-all duration-300">
         
         <!-- Dynamic Island / Top Notch -->
@@ -199,16 +204,20 @@
                     </p>
                 </div>
                 
-                <div class="flex items-center space-x-2">
-                    <!-- Equalizer -->
-                    <div id="equalizer" class="flex items-end space-x-0.5 h-4 w-7 px-0.5 border border-purple-500/30 rounded bg-cyberCard">
+                <div class="flex items-center space-x-1.5">
+                    <!-- 5-Bar Equalizer -->
+                    <div id="equalizer" class="flex items-end space-x-0.5 h-4 w-8 px-1 border border-purple-500/30 rounded bg-cyberCard">
                         <div class="equalizer-bar w-1 bg-cyan-400 rounded-full"></div>
                         <div class="equalizer-bar w-1 bg-pink-500 rounded-full"></div>
                         <div class="equalizer-bar w-1 bg-purple-500 rounded-full"></div>
                         <div class="equalizer-bar w-1 bg-cyan-400 rounded-full"></div>
+                        <div class="equalizer-bar w-1 bg-pink-400 rounded-full"></div>
                     </div>
                     
                     <!-- HUD Controls Buttons -->
+                    <button id="toggle-debug-btn" title="Toggle Rig Anchor Debug" class="w-7 h-7 rounded bg-cyberCard border border-purple-500/40 text-slate-400 hover:text-yellow-300 text-xs flex items-center justify-center transition">
+                        <i class="fa-solid fa-crosshairs"></i>
+                    </button>
                     <button id="toggle-sound-btn" title="Toggle Sound FX" class="w-7 h-7 rounded bg-cyberCard border border-purple-500/40 text-cyan-400 hover:text-pink-400 text-xs flex items-center justify-center transition">
                         <i class="fa-solid fa-volume-high"></i>
                     </button>
@@ -247,19 +256,18 @@
 
             <!-- Interactive Anime Cyber Avatar Canvas Section -->
             <div class="relative w-full h-64 sm:h-72 bg-gradient-to-b from-cyberDark via-cyberCard to-cyberPanel border-b border-purple-500/30 flex items-center justify-center overflow-hidden">
-                <!-- Interactive Canvas Render -->
-                <canvas id="avatar-canvas" class="w-full h-full z-20 cursor-pointer"></canvas>
+                <canvas id="avatar-canvas" class="w-full h-full z-20 cursor-pointer touch-none"></canvas>
                 
                 <!-- Telemetry & Diagnostic HUD Overlay -->
-                <div class="absolute top-2 left-2 z-20 font-mono text-[9px] text-cyan-400/90 pointer-events-none space-y-0.5 bg-black/40 p-1.5 rounded border border-cyan-500/20">
+                <div class="absolute top-2 left-2 z-20 font-mono text-[9px] text-cyan-400/90 pointer-events-none space-y-0.5 bg-black/50 p-1.5 rounded border border-cyan-500/20">
                     <div>FPS: <span id="fps-counter" class="text-pink-400">60</span></div>
-                    <div>LATENCY: <span id="latency-val" class="text-green-400">12ms</span></div>
+                    <div>ASSET: <span id="asset-status" class="text-green-400">LOADING</span></div>
                     <div>NEURAL SYNC: <span id="neural-sync" class="text-cyan-300">100%</span></div>
                 </div>
 
-                <div class="absolute top-2 right-2 z-20 font-mono text-[9px] text-pink-400/90 pointer-events-none bg-black/40 p-1.5 rounded border border-pink-500/20 text-right">
+                <div class="absolute top-2 right-2 z-20 font-mono text-[9px] text-pink-400/90 pointer-events-none bg-black/50 p-1.5 rounded border border-pink-500/20 text-right">
                     <div>MODE: <span id="avatar-state" class="text-cyan-300">IDLE</span></div>
-                    <div>VRAM: <span id="vram-counter" class="text-purple-300">DYNAMIC</span></div>
+                    <div>GPU: <span id="gpu-status" class="text-purple-300">CHECKING</span></div>
                 </div>
 
                 <div class="absolute bottom-1 right-2 z-20 font-mono text-[9px] text-slate-400 pointer-events-none">
@@ -275,7 +283,7 @@
                     </p>
                     <p class="text-slate-300 text-xs leading-relaxed">
                         Konnichiwa! I am <strong class="text-pink-400">SukiBot v2.0</strong>, your Cyberpunk AI assistant. 
-                        My 2D anime cyber avatar is live and fully synchronized. Talk or type to interact!
+                        My 2D anime cyber avatar is live and synchronized. Talk or type to interact!
                     </p>
                 </div>
             </main>
@@ -324,7 +332,7 @@
 
     <!-- Main Logic Script -->
     <script>
-        // --- 1. Web Audio Synthesizer Sound Engine (Resumes suspended AudioContext) ---
+        // --- 1. Web Audio Synthesizer Sound Engine ---
         class SoundEngine {
             constructor() {
                 this.ctx = null;
@@ -373,18 +381,51 @@
 
         const sounds = new SoundEngine();
 
-        // --- Custom Image 2D Cyber Anime Avatar Engine ---
+        // --- 2. High-DPI 2D Cyber Anime Avatar Engine with Proportional Rigging & Fallback ---
         class CyberAvatarEngine {
             constructor(canvasId, imageSrc) {
                 this.canvas = document.getElementById(canvasId);
                 this.ctx = this.canvas.getContext('2d');
                 this.state = 'IDLE'; // IDLE, TALKING, LISTENING, THINKING
+                this.debugMode = false;
+
+                // Logical CSS dimensions
+                this.width = 300;
+                this.height = 260;
+                this.dpr = 1;
+
+                // Normalized Rig Anchors (relative to base 300px portrait height)
+                // Tweak these if your custom image.png has slightly different proportions
+                this.rig = {
+                    leftEye:  { x: -43, y: -68 },
+                    rightEye: { x:  14, y: -68 },
+                    mouth:    { x: -14, y: -23 },
+                    coreOrb:  { x: -13, y:  32 },
+                    haloY:    -90
+                };
                 
-                // Image Asset
+                // Image Asset with fallback handling
                 this.avatarImg = new Image();
                 this.imgLoaded = false;
+                this.imgFailed = false;
+                const assetBadge = document.getElementById('asset-status');
+
                 this.avatarImg.onload = () => {
                     this.imgLoaded = true;
+                    this.imgFailed = false;
+                    if (assetBadge) {
+                        assetBadge.innerText = 'IMG_OK';
+                        assetBadge.className = 'text-green-400';
+                    }
+                };
+                this.avatarImg.onerror = () => {
+                    this.imgLoaded = false;
+                    this.imgFailed = true;
+                    console.warn(`Avatar asset "${imageSrc}" not found. Switching to procedural cyber-hologram fallback.`);
+                    if (assetBadge) {
+                        assetBadge.innerText = 'HOLO_FALLBACK';
+                        assetBadge.className = 'text-yellow-400';
+                    }
                 };
                 this.avatarImg.src = imageSrc;
 
@@ -402,11 +443,13 @@
                 this.resize();
                 window.addEventListener('resize', () => this.resize());
 
-                // Track pointer/touch
-                window.addEventListener('mousemove', (e) => this.updatePointer(e));
-                window.addEventListener('touchmove', (e) => {
-                    if (e.touches[0]) this.updatePointer(e.touches[0]);
-                });
+                // Track pointer/touch with clamping
+                window.addEventListener('mousemove', (e) => this.updatePointer(e.clientX, e.clientY));
+                this.canvas.addEventListener('touchmove', (e) => {
+                    if (e.touches[0]) {
+                        this.updatePointer(e.touches[0].clientX, e.touches[0].clientY);
+                    }
+                }, { passive: true });
 
                 this.canvas.addEventListener('click', () => {
                     sounds.playClick();
@@ -420,22 +463,37 @@
 
             resize() {
                 const rect = this.canvas.parentElement.getBoundingClientRect();
-                this.canvas.width = rect.width;
-                this.canvas.height = rect.height;
+                this.dpr = Math.min(window.devicePixelRatio || 1, 3);
+                this.width = Math.max(1, rect.width);
+                this.height = Math.max(1, rect.height);
+
+                this.canvas.width = Math.round(this.width * this.dpr);
+                this.canvas.height = Math.round(this.height * this.dpr);
+                this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+
+                if (this.particles.length > 0) {
+                    this.particles.forEach(p => {
+                        p.x = Math.min(p.x, this.width);
+                        p.y = Math.min(p.y, this.height);
+                    });
+                }
             }
 
-            updatePointer(e) {
+            updatePointer(clientX, clientY) {
                 const rect = this.canvas.getBoundingClientRect();
-                this.targetPointerX = (e.clientX - rect.left - rect.width / 2) / (rect.width / 2);
-                this.targetPointerY = (e.clientY - rect.top - rect.height / 2) / (rect.height / 2);
+                if (!rect.width || !rect.height) return;
+                const rawX = (clientX - rect.left - rect.width / 2) / (rect.width / 2);
+                const rawY = (clientY - rect.top - rect.height / 2) / (rect.height / 2);
+                this.targetPointerX = Math.max(-1.2, Math.min(1.2, rawX));
+                this.targetPointerY = Math.max(-1.2, Math.min(1.2, rawY));
             }
 
             initParticles() {
                 this.particles = [];
                 for (let i = 0; i < 40; i++) {
                     this.particles.push({
-                        x: Math.random() * this.canvas.width,
-                        y: Math.random() * this.canvas.height,
+                        x: Math.random() * this.width,
+                        y: Math.random() * this.height,
                         radius: Math.random() * 2 + 0.5,
                         speedX: (Math.random() - 0.5) * 0.9,
                         speedY: (Math.random() - 0.5) * 0.9,
@@ -450,14 +508,15 @@
             }
 
             drawParticles() {
+                const speedMult = this.state === 'THINKING' ? 2.2 : 1;
                 this.particles.forEach(p => {
-                    p.x += p.speedX * (this.state === 'THINKING' ? 2 : 1);
-                    p.y += p.speedY * (this.state === 'THINKING' ? 2 : 1);
+                    p.x += p.speedX * speedMult;
+                    p.y += p.speedY * speedMult;
 
-                    if (p.x < 0) p.x = this.canvas.width;
-                    if (p.x > this.canvas.width) p.x = 0;
-                    if (p.y < 0) p.y = this.canvas.height;
-                    if (p.y > this.canvas.height) p.y = 0;
+                    if (p.x < 0) p.x = this.width;
+                    if (p.x > this.width) p.x = 0;
+                    if (p.y < 0) p.y = this.height;
+                    if (p.y > this.height) p.y = 0;
 
                     this.ctx.beginPath();
                     this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
@@ -469,10 +528,79 @@
                 });
             }
 
+            // Procedural Cyber-Kitsune Hologram Fallback when image.png is absent
+            drawFallbackAvatar(ctx, scale) {
+                ctx.save();
+                ctx.scale(scale, scale);
+
+                // Neon Silhouette Aura
+                ctx.shadowBlur = 22;
+                ctx.shadowColor = '#b026ff';
+
+                // Cyber Cat/Fox Ears
+                ctx.fillStyle = '#120824';
+                ctx.strokeStyle = '#00f0ff';
+                ctx.lineWidth = 2;
+
+                // Left Ear
+                ctx.beginPath();
+                ctx.moveTo(-62, -92);
+                ctx.lineTo(-48, -142);
+                ctx.lineTo(-22, -104);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Right Ear
+                ctx.beginPath();
+                ctx.moveTo(34, -92);
+                ctx.lineTo(20, -142);
+                ctx.lineTo(-6, -104);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Shoulders / Cyber Collar
+                ctx.fillStyle = '#0f071e';
+                ctx.strokeStyle = '#ff2a8d';
+                ctx.beginPath();
+                ctx.ellipse(-14, 48, 68, 45, 0, Math.PI, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Face Contour
+                ctx.fillStyle = '#180d2c';
+                ctx.strokeStyle = '#bf5af2';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(-14, -55, 52, 58, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Glowing Cyber Eyes
+                const eyeShiftX = this.pointerX * 3;
+                const eyeShiftY = this.pointerY * 2;
+                [this.rig.leftEye, this.rig.rightEye].forEach(eye => {
+                    ctx.fillStyle = '#00f0ff';
+                    ctx.shadowColor = '#00f0ff';
+                    ctx.shadowBlur = 12;
+                    ctx.beginPath();
+                    ctx.ellipse(eye.x + eyeShiftX, eye.y + eyeShiftY, 10, 6, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#05030a';
+                    ctx.beginPath();
+                    ctx.arc(eye.x + eyeShiftX * 1.3, eye.y + eyeShiftY * 1.3, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                ctx.restore();
+            }
+
             render() {
                 const ctx = this.ctx;
-                const width = this.canvas.width;
-                const height = this.canvas.height;
+                const width = this.width;
+                const height = this.height;
                 const cx = width / 2;
                 const cy = height / 2;
 
@@ -482,13 +610,13 @@
 
                 ctx.clearRect(0, 0, width, height);
 
-                // Background Ambient Particles
+                // 1. Background Ambient Particles & Subtle Horizon Grid
                 this.drawParticles();
 
                 // Blink timing logic
                 this.blinkTimer++;
                 if (this.blinkTimer > 170) {
-                    this.eyeBlink = Math.sin((this.blinkTimer - 170) * 0.35);
+                    this.eyeBlink = Math.max(0, Math.sin((this.blinkTimer - 170) * 0.35));
                     if (this.blinkTimer > 185) {
                         this.eyeBlink = 0;
                         this.blinkTimer = 0;
@@ -504,26 +632,28 @@
                     this.mouthOpen = 0;
                 }
 
-                // Breathing motion (Vertical sine offset)
+                // Breathing & Talking Motion
                 const breathOffsetY = Math.sin(Date.now() * 0.0025) * 4;
                 const talkBounceY = this.state === 'TALKING' ? Math.sin(Date.now() * 0.015) * 3 : 0;
                 
                 // Head tilt target calculation
-                const targetTilt = this.state === 'LISTENING' ? 0.08 : (this.state === 'THINKING' ? -0.05 : 0);
+                const targetTilt = this.state === 'LISTENING' ? 0.07 : (this.state === 'THINKING' ? -0.05 : 0);
                 this.tiltAngle += (targetTilt - this.tiltAngle) * 0.1;
 
+                // Proportional scale factor relative to reference 280px avatar height
+                const drawHeight = height * 0.92;
+                const scale = drawHeight / 280;
+
                 ctx.save();
-                
-                // Position avatar in canvas center with slight offset
-                ctx.translate(cx + this.pointerX * 8, cy + 15 + breathOffsetY + talkBounceY + this.pointerY * 5);
+                ctx.translate(cx + this.pointerX * 8, cy + (12 * scale) + breathOffsetY + talkBounceY + this.pointerY * 5);
                 ctx.rotate(this.tiltAngle);
 
-                // --- 1. Thinking / Cyber Halo Ring ---
+                // --- 2. Thinking / Cyber Halo Ring ---
                 if (this.state === 'THINKING' || this.state === 'TALKING') {
                     ctx.save();
-                    ctx.translate(0, -90);
+                    ctx.translate(0, this.rig.haloY * scale);
                     ctx.beginPath();
-                    ctx.arc(0, 0, 100, 0, Math.PI * 2);
+                    ctx.arc(0, 0, 95 * scale, 0, Math.PI * 2);
                     ctx.strokeStyle = this.state === 'THINKING' ? '#ffe600' : '#00f0ff';
                     ctx.lineWidth = 2;
                     ctx.setLineDash([12, 8]);
@@ -534,10 +664,9 @@
                     ctx.restore();
                 }
 
-                // --- 2. Render Avatar Graphic Asset ---
+                // --- 3. Render Avatar Image OR Procedural Fallback ---
                 if (this.imgLoaded) {
                     const aspect = this.avatarImg.width / this.avatarImg.height;
-                    const drawHeight = height * 0.92;
                     const drawWidth = drawHeight * aspect;
 
                     ctx.shadowBlur = 20;
@@ -545,104 +674,122 @@
                     ctx.drawImage(
                         this.avatarImg, 
                         -drawWidth / 2, 
-                        -drawHeight / 2 - 10, 
+                        -drawHeight / 2 - (10 * scale), 
                         drawWidth, 
                         drawHeight
                     );
                     ctx.shadowBlur = 0;
+                } else {
+                    this.drawFallbackAvatar(ctx, scale);
+                }
 
-                    // --- 3. Dynamic Eye Overlays (Blink & Neon Lens Glow) ---
-                    const eyeY = -68;
-                    const leftEyeX = -43;
-                    const rightEyeX = 14;
+                // --- 4. Scaled Dynamic Eye Overlays ---
+                const eyeY = this.rig.leftEye.y * scale;
+                const leftEyeX = this.rig.leftEye.x * scale;
+                const rightEyeX = this.rig.rightEye.x * scale;
 
-                    // Eye Blinking Overlay
-                    if (this.eyeBlink > 0.1) {
-                        ctx.fillStyle = '#1c102a';
-                        const blinkH = 12 * this.eyeBlink;
-                        ctx.beginPath();
-                        ctx.ellipse(leftEyeX, eyeY, 12, blinkH, 0, 0, Math.PI * 2);
-                        ctx.ellipse(rightEyeX, eyeY, 12, blinkH, 0, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
+                if (this.eyeBlink > 0.1) {
+                    ctx.fillStyle = '#1c102a';
+                    const blinkH = 11 * scale * this.eyeBlink;
+                    ctx.beginPath();
+                    ctx.ellipse(leftEyeX, eyeY, 12 * scale, blinkH, 0, 0, Math.PI * 2);
+                    ctx.ellipse(rightEyeX, eyeY, 12 * scale, blinkH, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
 
-                    // Cyber Eye Reticle & Lens Glow (Active in LISTENING / THINKING)
-                    if (this.state === 'LISTENING' || this.state === 'THINKING') {
-                        ctx.save();
-                        ctx.translate(leftEyeX, eyeY);
-                        ctx.fillStyle = '#ff2a8d';
-                        ctx.shadowBlur = 12;
-                        ctx.shadowColor = '#ff2a8d';
-                        ctx.beginPath();
-                        ctx.arc(0, 0, 4, 0, Math.PI * 2);
-                        ctx.fill();
+                if (this.state === 'LISTENING' || this.state === 'THINKING') {
+                    ctx.save();
+                    ctx.translate(leftEyeX, eyeY);
+                    ctx.fillStyle = '#ff2a8d';
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = '#ff2a8d';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 3.5 * scale, 0, Math.PI * 2);
+                    ctx.fill();
 
-                        ctx.strokeStyle = '#00f0ff';
-                        ctx.lineWidth = 1;
-                        ctx.rotate(Date.now() * 0.005);
-                        ctx.beginPath();
-                        ctx.arc(0, 0, 9, 0, Math.PI * 2);
-                        ctx.moveTo(-11, 0); ctx.lineTo(11, 0);
-                        ctx.moveTo(0, -11); ctx.lineTo(0, 11);
-                        ctx.stroke();
-                        ctx.restore();
-                    }
+                    ctx.strokeStyle = '#00f0ff';
+                    ctx.lineWidth = 1.2;
+                    ctx.rotate(Date.now() * 0.005);
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 9 * scale, 0, Math.PI * 2);
+                    ctx.moveTo(-11 * scale, 0); ctx.lineTo(11 * scale, 0);
+                    ctx.moveTo(0, -11 * scale); ctx.lineTo(0, 11 * scale);
+                    ctx.stroke();
+                    ctx.restore();
+                }
 
-                    // --- 4. Dynamic Mouth Lip-Sync Overlay ---
-                    const mouthX = -14 + (this.pointerX * 2);
-                    const mouthY = -23;
+                // --- 5. Scaled Dynamic Mouth Lip-Sync Overlay ---
+                const mouthX = (this.rig.mouth.x + this.pointerX * 2) * scale;
+                const mouthY = this.rig.mouth.y * scale;
 
-                    if (this.mouthOpen > 0.08) {
-                        const mHeight = 2 + (this.mouthOpen * 9);
-                        const mWidth = 7 + (this.mouthOpen * 2);
-
-                        ctx.save();
-                        ctx.translate(mouthX, mouthY);
-
-                        // Mouth cavity background
-                        ctx.fillStyle = '#4c0519';
-                        ctx.beginPath();
-                        ctx.ellipse(0, 0, mWidth, mHeight, 0, 0, Math.PI * 2);
-                        ctx.fill();
-
-                        // Glowing Lip outline
-                        ctx.strokeStyle = '#ff2a8d';
-                        ctx.lineWidth = 1.5;
-                        ctx.shadowBlur = 6;
-                        ctx.shadowColor = '#ff2a8d';
-                        ctx.stroke();
-
-                        // Inner tongue accent
-                        ctx.fillStyle = '#ec4899';
-                        ctx.beginPath();
-                        ctx.arc(0, mHeight * 0.3, mWidth * 0.5, 0, Math.PI);
-                        ctx.fill();
-
-                        ctx.restore();
-                    }
-
-                    // --- 5. Chest Core Power Pulse Overlay ---
-                    const orbX = -13;
-                    const orbY = 32;
-                    const orbScale = 1 + Math.sin(Date.now() * 0.006) * 0.15 + (this.state === 'TALKING' ? 0.2 : 0);
+                if (this.mouthOpen > 0.08) {
+                    const mHeight = (2 + this.mouthOpen * 8.5) * scale;
+                    const mWidth = (7 + this.mouthOpen * 2) * scale;
 
                     ctx.save();
-                    ctx.translate(orbX, orbY);
-                    ctx.scale(orbScale, orbScale);
+                    ctx.translate(mouthX, mouthY);
+
+                    ctx.fillStyle = '#4c0519';
                     ctx.beginPath();
-                    ctx.arc(0, 0, 16, 0, Math.PI * 2);
-                    ctx.fillStyle = 'rgba(255, 42, 141, 0.25)';
-                    ctx.shadowBlur = 18;
-                    ctx.shadowColor = '#ff2a8d';
+                    ctx.ellipse(0, 0, mWidth, mHeight, 0, 0, Math.PI * 2);
                     ctx.fill();
+
+                    ctx.strokeStyle = '#ff2a8d';
+                    ctx.lineWidth = 1.5;
+                    ctx.shadowBlur = 6;
+                    ctx.shadowColor = '#ff2a8d';
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#ec4899';
+                    ctx.beginPath();
+                    ctx.arc(0, mHeight * 0.3, mWidth * 0.5, 0, Math.PI);
+                    ctx.fill();
+
                     ctx.restore();
+                }
+
+                // --- 6. Scaled Chest Core Power Pulse Overlay ---
+                const orbX = this.rig.coreOrb.x * scale;
+                const orbY = this.rig.coreOrb.y * scale;
+                const orbScale = 1 + Math.sin(Date.now() * 0.006) * 0.15 + (this.state === 'TALKING' ? 0.2 : 0);
+
+                ctx.save();
+                ctx.translate(orbX, orbY);
+                ctx.scale(orbScale, orbScale);
+                ctx.beginPath();
+                ctx.arc(0, 0, 15 * scale, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 42, 141, 0.25)';
+                ctx.shadowBlur = 18;
+                ctx.shadowColor = '#ff2a8d';
+                ctx.fill();
+                ctx.restore();
+
+                // --- 7. Optional Rig Anchor Calibration Crosshairs ---
+                if (this.debugMode) {
+                    const markers = [
+                        { label: 'L_EYE', x: leftEyeX, y: eyeY, color: '#00f0ff' },
+                        { label: 'R_EYE', x: rightEyeX, y: eyeY, color: '#00f0ff' },
+                        { label: 'MOUTH', x: mouthX, y: mouthY, color: '#ff2a8d' },
+                        { label: 'CORE',  x: orbX, y: orbY, color: '#ffe600' }
+                    ];
+                    markers.forEach(m => {
+                        ctx.strokeStyle = m.color;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(m.x - 8, m.y); ctx.lineTo(m.x + 8, m.y);
+                        ctx.moveTo(m.x, m.y - 8); ctx.lineTo(m.x, m.y + 8);
+                        ctx.stroke();
+                        ctx.fillStyle = m.color;
+                        ctx.font = '9px monospace';
+                        ctx.fillText(m.label, m.x + 10, m.y + 3);
+                    });
                 }
 
                 ctx.restore();
             }
         }
 
-        // --- Simulated LLM Engine (Resilient Fallback) ---
+        // --- 3. Simulated LLM Engine (Resilient Fallback) ---
         class SimulatedLLMEngine {
             async generate(prompt, onChunk) {
                 const text = prompt.toLowerCase();
@@ -660,7 +807,6 @@
                     response = `[SUKIBOT RESPONSE]: I have analyzed your neural query: "${prompt}". All local subsystems are locked and operational. Command confirmed.`;
                 }
 
-                // Stream simulated chunks
                 const words = response.split(" ");
                 for (let i = 0; i < words.length; i++) {
                     await new Promise(r => setTimeout(r, 45));
@@ -669,7 +815,7 @@
             }
         }
 
-        // --- WebLLM Real / Fallback Controller ---
+        // --- 4. WebLLM Real / Fallback Controller ---
         class WebLLMController {
             constructor() {
                 this.engine = null;
@@ -680,32 +826,39 @@
 
             async setModel(modelId, onProgress) {
                 this.currentModel = modelId;
-                document.getElementById('engine-badge').innerText = modelId === 'simulated' ? 'DEMO' : 'WEBGPU';
+                const badge = document.getElementById('engine-badge');
+                const select = document.getElementById('model-select');
 
                 if (modelId === 'simulated') {
+                    badge.innerText = 'DEMO';
                     this.isInit = true;
-                    return;
+                    return true;
                 }
 
-                if (!window.webLLM) {
-                    alert("WebLLM library is still loading or WebGPU is unsupported on this browser. Switching to Simulated Mode.");
-                    document.getElementById('model-select').value = 'simulated';
+                if (!navigator.gpu || !window.webLLM) {
+                    alert("WebGPU is unavailable or WebLLM is still loading in this browser. Switching to Simulated Demo Mode.");
+                    select.value = 'simulated';
                     this.currentModel = 'simulated';
-                    return;
+                    badge.innerText = 'DEMO';
+                    return false;
                 }
 
                 try {
+                    badge.innerText = 'WEBGPU';
                     this.engine = new window.webLLM.MLCEngine();
                     this.engine.setInitProgressCallback((report) => {
                         if (onProgress) onProgress(report.text, report.progress);
                     });
                     await this.engine.reload(modelId);
                     this.isInit = true;
+                    return true;
                 } catch (err) {
                     console.error("WebLLM Init failed:", err);
-                    alert("WebGPU initialization failed or unsupported on this device. Fallback to Demo Mode.");
+                    alert("WebGPU initialization failed on this device. Falling back to Demo Mode.");
                     this.currentModel = 'simulated';
-                    document.getElementById('model-select').value = 'simulated';
+                    select.value = 'simulated';
+                    badge.innerText = 'DEMO';
+                    return false;
                 }
             }
 
@@ -736,13 +889,32 @@
             }
         }
 
-        // --- Application Main Initialization & DOM binding ---
+        // --- 5. Application Main Initialization & DOM Binding ---
         window.addEventListener('DOMContentLoaded', () => {
-            // Instantiate Avatar Engine with user provided graphic asset
             const avatar = new CyberAvatarEngine('avatar-canvas', 'image.png');
             const llm = new WebLLMController();
 
-            // FPS Counter
+            // Check WebGPU support upfront
+            const gpuStatus = document.getElementById('gpu-status');
+            if (navigator.gpu) {
+                gpuStatus.innerText = 'WEBGPU_OK';
+                gpuStatus.className = 'text-green-400';
+            } else {
+                gpuStatus.innerText = 'SIM_ONLY';
+                gpuStatus.className = 'text-yellow-400';
+            }
+
+            // Preload SpeechSynthesis voices asynchronously
+            let cachedVoices = [];
+            if ('speechSynthesis' in window) {
+                const loadVoices = () => {
+                    cachedVoices = window.speechSynthesis.getVoices();
+                };
+                loadVoices();
+                window.speechSynthesis.onvoiceschanged = loadVoices;
+            }
+
+            // FPS Counter & Main Render Loop
             let lastFrameTime = performance.now();
             let frameCount = 0;
             const fpsElem = document.getElementById('fps-counter');
@@ -774,7 +946,16 @@
             const progressPercent = document.getElementById('progress-percent');
             const charCount = document.getElementById('char-count');
 
-            // 2. Sound Toggle (also stops active TTS if muted)
+            // Rig Debug Crosshair Toggle
+            const toggleDebugBtn = document.getElementById('toggle-debug-btn');
+            toggleDebugBtn.addEventListener('click', () => {
+                avatar.debugMode = !avatar.debugMode;
+                toggleDebugBtn.classList.toggle('text-yellow-300', avatar.debugMode);
+                toggleDebugBtn.classList.toggle('text-slate-400', !avatar.debugMode);
+                sounds.playClick();
+            });
+
+            // Sound Toggle
             const toggleSoundBtn = document.getElementById('toggle-sound-btn');
             toggleSoundBtn.addEventListener('click', () => {
                 sounds.enabled = !sounds.enabled;
@@ -805,7 +986,7 @@
                 appViewport.classList.toggle('sm:max-w-[480px]');
                 appViewport.classList.toggle('sm:max-w-[900px]');
                 sounds.playClick();
-                setTimeout(() => avatar.resize(), 300);
+                setTimeout(() => avatar.resize(), 310);
             });
 
             // Model Switch Handler
@@ -815,6 +996,7 @@
                 if (modelId === 'simulated') {
                     progressContainer.classList.add('hidden');
                     await llm.setModel('simulated');
+                    statusText.innerText = 'READY';
                     return;
                 }
 
@@ -822,19 +1004,19 @@
                 statusText.innerText = 'LOADING MODEL...';
                 avatar.setState('THINKING');
 
-                await llm.setModel(modelId, (text, progress) => {
+                const ok = await llm.setModel(modelId, (text, progress) => {
                     const pct = Math.round((progress || 0) * 100);
                     progressBar.style.width = pct + '%';
                     progressPercent.innerText = pct + '%';
                     progressText.innerText = text || 'Downloading model weights...';
                 });
 
-                statusText.innerText = 'ONLINE';
+                statusText.innerText = ok ? 'ONLINE' : 'DEMO FALLBACK';
                 avatar.setState('IDLE');
-                setTimeout(() => progressContainer.classList.add('hidden'), 2000);
+                setTimeout(() => progressContainer.classList.add('hidden'), ok ? 2000 : 300);
             });
 
-            // 3. Speech Recognition (error handling + audio unlock)
+            // Speech Recognition
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             let recognition = null;
             let isListening = false;
@@ -901,7 +1083,7 @@
                 }
             });
 
-            // 4. TTS Speech Synthesis Sync (mute check + mobile safety guard)
+            // TTS Speech Synthesis Sync
             function speak(text) {
                 const finishSpeech = () => {
                     equalizer.classList.remove('speaking-active');
@@ -929,7 +1111,7 @@
                     utterance.rate = 1.05;
                     utterance.pitch = 1.15;
 
-                    const voices = window.speechSynthesis.getVoices();
+                    const voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices();
                     const preferredVoice = voices.find(v => /en/i.test(v.lang) && /female|zira|samantha|google/i.test(v.name))
                         || voices.find(v => /en/i.test(v.lang));
                     if (preferredVoice) utterance.voice = preferredVoice;
@@ -971,7 +1153,7 @@
                 return card.querySelector('.msg-content');
             }
 
-            // 5. Handle Input Submission (unlocks audio + clean state flow)
+            // Handle Input Submission
             async function handleSend(text) {
                 if (!text || !text.trim()) return;
 
@@ -980,11 +1162,9 @@
                 userInput.value = '';
                 charCount.innerText = '0 CHARS';
 
-                // Render User Prompt
                 const userContentNode = createMessageCard('USER');
                 userContentNode.innerText = text;
 
-                // Prepare Bot Response Container
                 statusText.innerText = 'PROCESSING...';
                 avatar.setState('THINKING');
 
@@ -1003,18 +1183,15 @@
                 speak(fullResponse);
             }
 
-            // Form Submit Event
             chatForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 handleSend(userInput.value);
             });
 
-            // Input Char Counter
             userInput.addEventListener('input', (e) => {
                 charCount.innerText = `${e.target.value.length} CHARS`;
             });
 
-            // Quick Prompt Chips
             document.querySelectorAll('.chip-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const text = btn.innerText.replace(/^[^\w]+/, '').trim();
@@ -1023,7 +1200,6 @@
                 });
             });
 
-            // Clear Chat (also stops any active speech)
             document.getElementById('clear-chat-btn').addEventListener('click', () => {
                 sounds.playClick();
                 if ('speechSynthesis' in window) {
@@ -1039,7 +1215,6 @@
                 `;
             });
 
-            // Export Chat Log
             document.getElementById('export-chat-btn').addEventListener('click', () => {
                 sounds.playClick();
                 let logText = "=== SUKIBOT NEURAL CHAT LOG ===\n\n";
