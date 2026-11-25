@@ -1,733 +1,1469 @@
-l<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SUKI // Tactical HUD Interface</title>
+  <title>Sukibot — Goth Ninja AI & Self-Improving Code Lab</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Cinzel:wght@600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+            display: ['Cinzel', 'serif'],
+          },
+          colors: {
+            void: '#08050d',
+            obsidian: '#110a1c',
+            crypt: '#190f29',
+            neonGreen: '#39ff14',
+            acidMint: '#22ff55',
+            neonPurple: '#b026ff',
+            cyberLilac: '#c084fc',
+          }
+        }
+      }
+    };
+  </script>
   <style>
-    /* ==========================================================================
-       DYNAMIC THEME VARIABLES DRIVEN BY body[data-suki-mode]
-       ========================================================================== */
     :root {
-      --hud-primary: #00f0ff;
-      --hud-primary-dim: rgba(0, 240, 255, 0.16);
-      --hud-primary-glow: rgba(0, 240, 255, 0.45);
-      --hud-bg: #050a10;
-      --hud-panel: rgba(8, 18, 28, 0.72);
-      --hud-grid: rgba(0, 240, 255, 0.06);
-      --hud-opacity: 1;
-      --ring-speed: 18s;
-      --pulse-speed: 4s;
-    }
-
-    body[data-suki-mode="idle"] {
-      --hud-primary: #00f0ff;
-      --hud-primary-dim: rgba(0, 240, 255, 0.14);
-      --hud-primary-glow: rgba(0, 240, 255, 0.45);
-      --hud-bg: #040911;
-      --hud-panel: rgba(6, 16, 26, 0.75);
-      --hud-grid: rgba(0, 240, 255, 0.05);
-      --hud-opacity: 1;
-      --ring-speed: 22s;
-      --pulse-speed: 4s;
-    }
-
-    body[data-suki-mode="active"] {
-      --hud-primary: #00ff88;
-      --hud-primary-dim: rgba(0, 255, 136, 0.16);
-      --hud-primary-glow: rgba(0, 255, 136, 0.5);
-      --hud-bg: #04100b;
-      --hud-panel: rgba(6, 24, 16, 0.78);
-      --hud-grid: rgba(0, 255, 136, 0.07);
-      --hud-opacity: 1;
-      --ring-speed: 9s;
-      --pulse-speed: 2.2s;
-    }
-
-    body[data-suki-mode="stealth"] {
-      --hud-primary: #a855f7;
-      --hud-primary-dim: rgba(168, 85, 247, 0.12);
-      --hud-primary-glow: rgba(168, 85, 247, 0.3);
-      --hud-bg: #06040b;
-      --hud-panel: rgba(12, 8, 20, 0.65);
-      --hud-grid: rgba(168, 85, 247, 0.035);
-      --hud-opacity: 0.78;
-      --ring-speed: 32s;
-      --pulse-speed: 6s;
-    }
-
-    body[data-suki-mode="combat"] {
-      --hud-primary: #ff2a55;
-      --hud-primary-dim: rgba(255, 42, 85, 0.2);
-      --hud-primary-glow: rgba(255, 42, 85, 0.65);
-      --hud-bg: #120408;
-      --hud-panel: rgba(28, 7, 13, 0.82);
-      --hud-grid: rgba(255, 42, 85, 0.08);
-      --hud-opacity: 1;
-      --ring-speed: 4.5s;
-      --pulse-speed: 0.9s;
-    }
-
-    * {
-      box-sizing: border-box;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
+      --accent-primary: #39ff14;
+      --accent-secondary: #b026ff;
+      --blade-glow: #39ff14;
     }
 
     body {
-      margin: 0;
-      height: 100vh;
-      height: 100dvh;
-      overflow: hidden;
-      background-color: var(--hud-bg);
-      color: var(--hud-primary);
-      font-family: 'JetBrains Mono', monospace;
-      transition: background-color 0.45s ease, color 0.45s ease;
+      font-family: 'Inter', sans-serif;
+      background-color: #08050d;
+      color: #f5e9ff;
+      overflow-x: hidden;
     }
 
-    .font-display {
-      font-family: 'Orbitron', sans-serif;
-    }
-
-    /* Background Tactical Grid & Scanlines */
-    .hud-grid-bg {
+    /* Cute gothic midnight cyber grid with neon green & neon purple glow */
+    .cyber-dojo-bg {
+      background-color: #08050d;
       background-image:
-        linear-gradient(to right, var(--hud-grid) 1px, transparent 1px),
-        linear-gradient(to bottom, var(--hud-grid) 1px, transparent 1px),
-        radial-gradient(circle at 50% 50%, var(--hud-primary-dim) 0%, transparent 68%);
-      background-size: 36px 36px, 36px 36px, 100% 100%;
-      transition: background-image 0.45s ease;
+        radial-gradient(circle at 18% 15%, rgba(57, 255, 20, 0.14) 0%, transparent 45%),
+        radial-gradient(circle at 82% 20%, rgba(176, 38, 255, 0.22) 0%, transparent 48%),
+        radial-gradient(circle at 50% 90%, rgba(192, 132, 252, 0.11) 0%, transparent 52%),
+        linear-gradient(to right, rgba(176, 38, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(57, 255, 20, 0.05) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 100% 100%, 36px 36px, 36px 36px;
     }
 
-    .scanlines {
-      background: linear-gradient(
-        rgba(18, 16, 16, 0) 50%,
-        rgba(0, 0, 0, 0.35) 50%
-      );
-      background-size: 100% 4px;
-      pointer-events: none;
+    /* Character idle float & breathing */
+    @keyframes floatBreath {
+      0%, 100% {
+        transform: translateY(0px);
+      }
+      50% {
+        transform: translateY(-6px);
+      }
     }
 
-    /* Telemetry Panel Styling with Corner Brackets */
-    .hud-panel {
-      background: var(--hud-panel);
-      border: 1px solid var(--hud-primary-dim);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5), inset 0 0 12px var(--hud-primary-dim);
-      opacity: var(--hud-opacity);
-      transition: all 0.4s ease;
-      position: relative;
+    @keyframes twinTailLeft {
+      0%, 100% {
+        transform: rotate(0deg);
+      }
+      50% {
+        transform: rotate(3.2deg);
+      }
     }
 
-    .hud-panel::before,
-    .hud-panel::after {
-      content: '';
-      position: absolute;
-      width: 10px;
-      height: 10px;
-      border-color: var(--hud-primary);
-      border-style: solid;
-      transition: border-color 0.4s ease;
-      pointer-events: none;
+    @keyframes twinTailRight {
+      0%, 100% {
+        transform: rotate(0deg);
+      }
+      50% {
+        transform: rotate(-3.2deg);
+      }
     }
 
-    .hud-panel::before {
-      top: -1px;
-      left: -1px;
-      border-width: 2px 0 0 2px;
+    @keyframes katanaSlash {
+      0% {
+        transform: rotate(0deg) translate(0px, 0px);
+      }
+      22% {
+        transform: rotate(-34deg) translate(-8px, -6px);
+      }
+      48% {
+        transform: rotate(68deg) translate(16px, 8px);
+      }
+      75% {
+        transform: rotate(12deg) translate(4px, 2px);
+      }
+      100% {
+        transform: rotate(0deg) translate(0px, 0px);
+      }
     }
 
-    .hud-panel::after {
-      bottom: -1px;
-      right: -1px;
-      border-width: 0 2px 2px 0;
+    @keyframes slashArcAnim {
+      0% {
+        opacity: 0;
+        transform: scale(0.75) rotate(-18deg);
+      }
+      25% {
+        opacity: 0.95;
+        transform: scale(1.02) rotate(0deg);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(1.18) rotate(12deg);
+      }
     }
 
-    /* Chat Box & Custom Scrollbar */
-    .chat-selectable,
-    .chat-selectable * {
-      user-select: text;
+    @keyframes pulseAura {
+      0%, 100% {
+        opacity: 0.45;
+        transform: scale(0.98);
+      }
+      50% {
+        opacity: 0.8;
+        transform: scale(1.04);
+      }
     }
 
-    #chat-log::-webkit-scrollbar {
-      width: 4px;
+    .sukibot-body-anim {
+      animation: floatBreath 3.6s ease-in-out infinite;
+      transform-origin: center bottom;
     }
 
-    #chat-log::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.25);
+    .twintail-left {
+      transform-box: fill-box;
+      transform-origin: top center;
+      animation: twinTailLeft 3.2s ease-in-out infinite;
     }
 
-    #chat-log::-webkit-scrollbar-thumb {
-      background: var(--hud-primary-dim);
-      border-radius: 2px;
+    .twintail-right {
+      transform-box: fill-box;
+      transform-origin: top center;
+      animation: twinTailRight 3.2s ease-in-out infinite;
     }
 
-    #chat-log::-webkit-scrollbar-thumb:hover {
-      background: var(--hud-primary);
+    .katana-group {
+      transform-box: fill-box;
+      transform-origin: 24% 82%;
+      transition: transform 0.25s ease;
     }
 
-    .chat-msg-user {
-      background: var(--hud-primary-dim);
-      border: 1px solid var(--hud-primary);
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.35);
+    .katana-slashing {
+      animation: katanaSlash 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
 
-    .chat-msg-suki {
-      background: rgba(0, 0, 0, 0.45);
-      border: 1px solid var(--hud-primary-dim);
-    }
-
-    #chat-input::placeholder {
-      color: var(--hud-primary);
-      opacity: 0.45;
-    }
-
-    #chat-input:focus {
-      outline: none;
-      border-color: var(--hud-primary);
-      box-shadow: 0 0 12px var(--hud-primary-dim);
-    }
-
-    /* Holographic Reticle Animations */
-    @keyframes spin-cw {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    @keyframes spin-ccw {
-      from { transform: rotate(360deg); }
-      to { transform: rotate(0deg); }
-    }
-
-    @keyframes core-breathe {
-      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px var(--hud-primary-glow)); }
-      50% { transform: scale(1.04); filter: drop-shadow(0 0 24px var(--hud-primary-glow)); }
-    }
-
-    @keyframes combat-shake {
-      0%, 100% { transform: translate(0, 0); }
-      25% { transform: translate(-1.5px, 1px); }
-      50% { transform: translate(1.5px, -1px); }
-      75% { transform: translate(-1px, -1.5px); }
-    }
-
-    .ring-outer {
-      animation: spin-cw var(--ring-speed) linear infinite;
+    .slash-arc {
+      transform-box: fill-box;
       transform-origin: center;
+      opacity: 0;
     }
 
-    .ring-inner {
-      animation: spin-ccw calc(var(--ring-speed) * 0.65) linear infinite;
+    .slash-arc-active {
+      animation: slashArcAnim 0.62s ease-out forwards;
+    }
+
+    .aura-ring {
+      transform-box: fill-box;
       transform-origin: center;
+      animation: pulseAura 4s ease-in-out infinite;
     }
 
-    .avatar-core-pulse {
-      animation: core-breathe var(--pulse-speed) ease-in-out infinite;
-      transform-origin: center;
+    /* Custom sleek scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
     }
-
-    body[data-suki-mode="combat"] .combat-alert-jitter {
-      animation: combat-shake 0.25s infinite;
+    ::-webkit-scrollbar-track {
+      background: rgba(17, 13, 24, 0.7);
     }
-
-    body[data-suki-mode="combat"] .combat-reticle-lock {
-      transform: scale(0.92);
-      transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    ::-webkit-scrollbar-thumb {
+      background: rgba(176, 38, 255, 0.45);
+      border-radius: 9999px;
     }
-
-    .combat-reticle-lock {
-      transform: scale(1);
-      transition: transform 0.4s ease;
-    }
-
-    /* Mode Selector Buttons */
-    .mode-btn {
-      border: 1px solid var(--hud-primary-dim);
-      background: rgba(0, 0, 0, 0.35);
-      color: var(--hud-primary);
-      transition: all 0.25s ease;
-    }
-
-    .mode-btn:hover {
-      background: var(--hud-primary-dim);
-      box-shadow: 0 0 12px var(--hud-primary-glow);
-    }
-
-    .mode-btn.active-mode {
-      background: var(--hud-primary);
-      color: #03060a;
-      font-weight: 700;
-      box-shadow: 0 0 16px var(--hud-primary-glow);
-    }
-
-    /* Tap Ripple Feedback */
-    @keyframes tap-ring {
-      0% { transform: scale(0.7); opacity: 0.9; }
-      100% { transform: scale(1.45); opacity: 0; }
-    }
-    .tap-burst {
-      animation: tap-ring 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(57, 255, 20, 0.75);
     }
   </style>
 </head>
-<body data-suki-mode="idle" class="hud-grid-bg relative flex flex-col justify-between p-3 sm:p-5">
-
-  <!-- CRT Scanline & Outer Frame Overlay -->
-  <div class="scanlines fixed inset-0 z-40"></div>
-  <div class="pointer-events-none fixed inset-2 sm:inset-3 border border-[var(--hud-primary-dim)] rounded-lg z-30 transition-colors duration-500"></div>
-
-  <!-- ========================================================================
-       TOP TELEMETRY BAR (LEFT & RIGHT CLUSTERS)
-       ======================================================================== -->
-  <header class="relative z-20 flex flex-col sm:flex-row justify-between items-stretch sm:items-start gap-2.5 sm:gap-3">
-
-    <!-- TOP-LEFT TELEMETRY CLUSTER: STATUS, ASSET, MODE -->
-    <div class="hud-panel rounded-md px-3.5 py-2 sm:px-4 sm:py-2.5 flex flex-wrap sm:flex-nowrap items-center gap-4 sm:gap-5">
-      <!-- Status -->
-      <div class="flex flex-col">
-        <span class="text-[10px] tracking-[0.2em] opacity-60 uppercase">SYS.STATUS</span>
-        <div class="flex items-center gap-2 mt-0.5">
-          <span class="w-2 h-2 rounded-full bg-[var(--hud-primary)] animate-ping"></span>
-          <span id="hud-status" class="text-xs sm:text-sm font-bold tracking-wider">BOOTING</span>
+<body class="cyber-dojo-bg min-h-screen text-purple-50 selection:bg-[#39ff14]/25 selection:text-[#39ff14]">
+  <!-- App Container -->
+  <div id="app" class="max-w-[1440px] mx-auto px-3 sm:px-5 py-4 space-y-4">
+    <!-- Top Header Bar -->
+    <header class="rounded-2xl bg-obsidian/90 border border-[#b026ff]/40 backdrop-blur-md px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-lg shadow-[#b026ff]/15">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#b026ff]/30 via-[#190f29] to-[#39ff14]/25 border border-[#39ff14]/50 flex items-center justify-center shadow-inner">
+          <!-- Mini Goth Kunai / Crescent SVG -->
+          <svg class="w-6 h-6 text-[#39ff14]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3z" />
+          </svg>
         </div>
-      </div>
-
-      <div class="h-7 w-px bg-[var(--hud-primary-dim)] hidden sm:block"></div>
-
-      <!-- Asset State -->
-      <div class="flex flex-col">
-        <span class="text-[10px] tracking-[0.2em] opacity-60 uppercase">ASSET.CORE</span>
-        <span id="hud-asset" class="text-xs sm:text-sm font-bold tracking-wider mt-0.5">STANDBY</span>
-      </div>
-
-      <div class="h-7 w-px bg-[var(--hud-primary-dim)] hidden sm:block"></div>
-
-      <!-- Mode Badge -->
-      <div class="flex flex-col ml-auto sm:ml-0">
-        <span class="text-[10px] tracking-[0.2em] opacity-60 uppercase">OP.MODE</span>
-        <div class="mt-0.5 px-2.5 py-0.5 rounded bg-[var(--hud-primary-dim)] border border-[var(--hud-primary)] text-center combat-alert-jitter">
-          <span id="hud-mode" class="font-display text-xs sm:text-sm font-bold tracking-[0.18em]">IDLE</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- TOP-RIGHT TELEMETRY CLUSTER: GPU, FPS, NEURAL SYNC -->
-    <div class="hud-panel rounded-md px-3.5 py-2 sm:px-4 sm:py-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end gap-4 sm:gap-5">
-      <!-- GPU Hardware Readout -->
-      <div class="flex flex-col">
-        <span class="text-[10px] tracking-[0.2em] opacity-60 uppercase">RENDER.GPU</span>
-        <span id="hud-gpu" class="text-xs sm:text-sm font-semibold tracking-wider mt-0.5">PROBING...</span>
-      </div>
-
-      <div class="h-7 w-px bg-[var(--hud-primary-dim)] hidden sm:block"></div>
-
-      <!-- Live FPS Counter -->
-      <div class="flex flex-col min-w-[54px]">
-        <span class="text-[10px] tracking-[0.2em] opacity-60 uppercase">FRAME.FPS</span>
-        <div class="flex items-baseline gap-1 mt-0.5">
-          <span id="hud-fps" class="text-xs sm:text-sm font-bold tabular-nums">60</span>
-          <span class="text-[10px] opacity-60">HZ</span>
-        </div>
-      </div>
-
-      <div class="h-7 w-px bg-[var(--hud-primary-dim)] hidden sm:block"></div>
-
-      <!-- Neural Sync + Progress Bar -->
-      <div class="flex flex-col min-w-[125px] flex-1 sm:flex-initial">
-        <div class="flex justify-between items-center text-[10px] tracking-[0.16em]">
-          <span class="opacity-60 uppercase">NEURAL.SYNC</span>
-          <span id="hud-neural-sync" class="font-bold tabular-nums">45%</span>
-        </div>
-        <div class="w-full h-2 bg-black/50 border border-[var(--hud-primary-dim)] rounded-sm mt-1.5 overflow-hidden p-[1px]">
-          <div
-            id="neural-sync-bar"
-            class="h-full bg-[var(--hud-primary)] transition-all duration-500 ease-out"
-            style="width: 45%; box-shadow: 0 0 8px var(--hud-primary-glow);"
-          ></div>
-        </div>
-      </div>
-    </div>
-
-  </header>
-
-  <!-- ========================================================================
-       CENTER INTERACTIVE STAGE & HOLOGRAPHIC AVATAR ("SUKI")
-       ======================================================================== -->
-  <main
-    id="hud-stage"
-    class="relative z-10 flex-1 flex flex-col items-center justify-center cursor-pointer overflow-hidden my-1.5 min-h-0"
-    title="Tap stage or avatar to cycle HUD mode"
-  >
-    <!-- Reactive Ambient Particle / Waveform Canvas -->
-    <canvas id="stage-canvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
-
-    <!-- Decorative Side Axis Scales -->
-    <div class="hidden md:flex flex-col justify-between h-64 absolute left-6 opacity-40 text-[10px] tracking-widest pointer-events-none">
-      <span>+090° ELEV</span>
-      <span>+045° ----</span>
-      <span class="text-[var(--hud-primary)] font-bold">000° LOCK</span>
-      <span>-045° ----</span>
-      <span>-090° NADIR</span>
-    </div>
-
-    <div class="hidden md:flex flex-col justify-between items-end h-64 absolute right-6 opacity-40 text-[10px] tracking-widest pointer-events-none">
-      <span>SYNC // BUS_01</span>
-      <span>CORE // SUKI_V4</span>
-      <span class="text-[var(--hud-primary)] font-bold">LINK // ACTIVE</span>
-      <span>MEM // 0x7FF4A</span>
-      <span>TEMP // 34.2°C</span>
-    </div>
-
-    <!-- Interactive Holographic Avatar Core -->
-    <div
-      id="hud-avatar"
-      class="relative flex items-center justify-center w-52 h-52 sm:w-64 sm:h-64 md:w-80 md:h-80 combat-reticle-lock group -translate-y-8 sm:-translate-y-10 transition-transform"
-    >
-      <!-- Dynamic Tap Burst Container -->
-      <div id="tap-burst-layer" class="absolute inset-0 pointer-events-none flex items-center justify-center"></div>
-
-      <!-- Vector Holographic Reticle & Cybernetic Silhouette -->
-      <svg viewBox="0 0 400 400" class="w-full h-full overflow-visible">
-        <defs>
-          <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="currentColor" stop-opacity="0.35" />
-            <stop offset="65%" stop-color="currentColor" stop-opacity="0.08" />
-            <stop offset="100%" stop-color="currentColor" stop-opacity="0" />
-          </radialGradient>
-          <linearGradient id="visorGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="currentColor" stop-opacity="0.15" />
-            <stop offset="50%" stop-color="currentColor" stop-opacity="0.85" />
-            <stop offset="100%" stop-color="currentColor" stop-opacity="0.15" />
-          </linearGradient>
-        </defs>
-
-        <!-- Ambient Core Aura -->
-        <circle cx="200" cy="200" r="165" fill="url(#coreGlow)" class="avatar-core-pulse" />
-
-        <!-- Outer Rotating Segmented Telemetry Ring -->
-        <g class="ring-outer" stroke="currentColor" fill="none">
-          <circle cx="200" cy="200" r="182" stroke-width="1" stroke-dasharray="14 8 3 8" opacity="0.55" />
-          <circle cx="200" cy="200" r="172" stroke-width="2.5" stroke-dasharray="65 115" opacity="0.85" />
-          <!-- Cardinal Ticks -->
-          <line x1="200" y1="8" x2="200" y2="22" stroke-width="2" />
-          <line x1="200" y1="378" x2="200" y2="392" stroke-width="2" />
-          <line x1="8" y1="200" x2="22" y2="200" stroke-width="2" />
-          <line x1="378" y1="200" x2="392" y2="200" stroke-width="2" />
-        </g>
-
-        <!-- Counter-Rotating Inner Tactical Ring -->
-        <g class="ring-inner" stroke="currentColor" fill="none">
-          <circle cx="200" cy="200" r="144" stroke-width="1.2" stroke-dasharray="4 10" opacity="0.7" />
-          <path d="M 200 46 A 154 154 0 0 1 333 123" stroke-width="3" opacity="0.9" />
-          <path d="M 200 354 A 154 154 0 0 1 67 277" stroke-width="3" opacity="0.9" />
-        </g>
-
-        <!-- Precision Crosshair Brackets -->
-        <g stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.75">
-          <path d="M 85 110 L 85 85 L 110 85" />
-          <path d="M 315 110 L 315 85 L 290 85" />
-          <path d="M 85 290 L 85 315 L 110 315" />
-          <path d="M 315 290 L 315 315 L 290 315" />
-        </g>
-
-        <!-- Stylized Cybernetic Silhouette ("SUKI") -->
-        <g class="avatar-core-pulse" stroke="currentColor" fill="none">
-          <!-- Shoulder / Collar Chassis -->
-          <path
-            d="M 118 296 L 142 254 L 172 246 L 200 256 L 228 246 L 258 254 L 282 296"
-            stroke-width="2"
-            fill="currentColor"
-            fill-opacity="0.08"
-          />
-          <path d="M 154 252 L 166 286 L 234 286 L 246 252" stroke-width="1.2" opacity="0.7" />
-
-          <!-- Neck / Neural Spine Conduit -->
-          <line x1="188" y1="224" x2="188" y2="250" stroke-width="1.5" opacity="0.8" />
-          <line x1="212" y1="224" x2="212" y2="250" stroke-width="1.5" opacity="0.8" />
-          <circle cx="200" cy="238" r="3" fill="currentColor" />
-
-          <!-- Cybernetic Head / Helmet Contour -->
-          <path
-            d="M 162 154 C 162 122, 238 122, 238 154 L 234 196 L 214 222 L 186 222 L 166 196 Z"
-            stroke-width="2"
-            fill="currentColor"
-            fill-opacity="0.1"
-          />
-
-          <!-- Cyber-Ear / Comms Array Nodes -->
-          <rect x="152" y="158" width="8" height="28" rx="2" stroke-width="1.5" fill="currentColor" fill-opacity="0.25" />
-          <rect x="240" y="158" width="8" height="28" rx="2" stroke-width="1.5" fill="currentColor" fill-opacity="0.25" />
-          <line x1="156" y1="158" x2="156" y2="132" stroke-width="1.2" opacity="0.8" />
-          <line x1="244" y1="158" x2="244" y2="132" stroke-width="1.2" opacity="0.8" />
-
-          <!-- Tactical Optical Visor -->
-          <polygon
-            points="168,164 232,164 226,178 205,175 195,175 174,178"
-            fill="url(#visorGrad)"
-            stroke-width="1.5"
-          />
-          <!-- Optical Eye Nodes -->
-          <circle cx="184" cy="170" r="2.2" fill="#ffffff" />
-          <circle cx="216" cy="170" r="2.2" fill="#ffffff" />
-
-          <!-- Forehead Crest & Chin Telemetry -->
-          <polygon points="200,130 206,144 200,150 194,144" fill="currentColor" fill-opacity="0.6" />
-          <line x1="190" y1="206" x2="210" y2="206" stroke-width="1.5" opacity="0.75" />
-        </g>
-
-        <!-- Identity Tag inside Reticle -->
-        <text
-          x="200"
-          y="324"
-          text-anchor="middle"
-          fill="currentColor"
-          class="font-display text-[13px] font-bold tracking-[0.35em]"
-          opacity="0.9"
-        >
-          SUKI // UNIT-01
-        </text>
-      </svg>
-    </div>
-
-    <!-- ======================================================================
-         TACTICAL COMMS OVERLAY (COLLAPSIBLE CHAT BOXES + INPUT)
-         ====================================================================== -->
-    <section
-      id="comms-panel"
-      aria-label="Suki Tactical Comms"
-      class="hud-panel rounded-md w-full max-w-2xl mt-auto mb-1 z-20 cursor-default flex flex-col overflow-hidden"
-    >
-      <!-- Comms Header Bar -->
-      <div class="flex items-center justify-between px-3 py-1.5 border-b border-[var(--hud-primary-dim)] bg-black/30">
-        <div class="flex items-center gap-2">
-          <span class="w-1.5 h-1.5 rounded-full bg-[var(--hud-primary)]"></span>
-          <span class="text-[10px] font-display font-bold tracking-[0.22em] uppercase">
-            COMMS.CHANNEL // ENCRYPTED
-          </span>
-        </div>
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            id="clear-chat-btn"
-            class="text-[10px] tracking-wider uppercase opacity-65 hover:opacity-100 px-1.5 py-0.5 border border-transparent hover:border-[var(--hud-primary-dim)] rounded cursor-pointer"
-            title="Purge Comms Log"
-          >
-            CLR
-          </button>
-          <button
-            type="button"
-            id="toggle-chat-btn"
-            class="text-[10px] tracking-wider uppercase opacity-80 hover:opacity-100 px-2 py-0.5 border border-[var(--hud-primary-dim)] rounded cursor-pointer"
-            aria-expanded="true"
-          >
-            MINIMIZE
-          </button>
-        </div>
-      </div>
-
-      <!-- Scrollable Message Feed -->
-      <div
-        id="chat-log"
-        class="chat-selectable px-3 py-2.5 h-32 sm:h-36 overflow-y-auto flex flex-col gap-2 text-xs leading-relaxed"
-      >
-        <div class="chat-msg-suki rounded px-2.5 py-1.5 max-w-[88%] self-start">
-          <div class="flex items-center justify-between gap-3 text-[9px] tracking-[0.18em] opacity-60 mb-0.5">
-            <span>SUKI // UNIT-01</span>
-            <span>ONLINE</span>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="font-display text-lg sm:text-xl font-bold tracking-wider bg-gradient-to-r from-[#39ff14] via-[#c084fc] to-[#b026ff] bg-clip-text text-transparent">
+              SUKIBOT // GOTH NINJA AI
+            </h1>
+            <span id="versionBadge" class="text-xs font-mono px-2 py-0.5 rounded-full bg-[#39ff14]/15 text-[#39ff14] border border-[#39ff14]/45">
+              v1.0.0
+            </span>
           </div>
-          <p class="m-0">Tactical neural link established. Awaiting operator input.</p>
+          <p class="text-xs text-[#c084fc]/85">
+            Animated Neon Goth Schoolgirl • Dual Neural Chat • Live Self-Improving Code Engine
+          </p>
         </div>
       </div>
 
-      <!-- Message Input Form -->
-      <form id="chat-form" class="flex items-center gap-2 p-2 border-t border-[var(--hud-primary-dim)] bg-black/40">
-        <span class="text-xs font-bold opacity-70 pl-1">&gt;</span>
-        <input
-          id="chat-input"
-          type="text"
-          autocomplete="off"
-          placeholder="Transmit directive to SUKI..."
-          class="chat-selectable flex-1 bg-black/50 border border-[var(--hud-primary-dim)] rounded px-2.5 py-1.5 text-xs text-[var(--hud-primary)] transition-all"
-        />
-        <button
-          type="submit"
-          class="mode-btn px-3 py-1.5 rounded text-[11px] font-bold tracking-[0.15em] uppercase cursor-pointer shrink-0"
-        >
-          SEND
+      <!-- Quick Controls: Voice Toggle, Slash Action, Reset & Export -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <button id="voiceToggleBtn" type="button" class="px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 bg-[#b026ff]/20 hover:bg-[#b026ff]/30 text-purple-100 border border-[#b026ff]/50 transition active:scale-95 cursor-pointer" title="Toggle Anime Voice Synthesis">
+          <span id="voiceIcon">🔊</span>
+          <span id="voiceStatusLabel">Voice: ON</span>
         </button>
-      </form>
-    </section>
-  </main>
 
-  <!-- ========================================================================
-       BOTTOM INTERACTION HINT & QUICK-SELECT CONTROLS
-       ======================================================================== -->
-  <footer class="relative z-20 flex flex-col items-center gap-2">
-    <!-- Subtle Prompt Hint -->
-    <div class="text-[10px] sm:text-xs tracking-[0.24em] uppercase opacity-75 text-center animate-pulse">
-      [ TAP AVATAR OR STAGE TO CYCLE MODE ]
-    </div>
+        <button id="slashTriggerBtn" type="button" class="px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 bg-[#39ff14]/15 hover:bg-[#39ff14]/25 text-[#39ff14] border border-[#39ff14]/45 transition active:scale-95 cursor-pointer" title="Command Sukibot to Slash">
+          <span>⚔️</span>
+          <span>Blade Slash</span>
+        </button>
 
-    <!-- Control Bar: Quick-Select Modes + Asset Reload Simulation -->
-    <div class="hud-panel rounded-md px-3 py-2 flex flex-wrap items-center justify-center gap-2 w-full max-w-2xl">
-      <div class="flex items-center gap-1.5 flex-wrap justify-center" id="mode-buttons">
-        <button type="button" data-mode-index="0" class="mode-btn px-2.5 py-1.5 rounded text-[11px] tracking-wider uppercase cursor-pointer">
-          IDLE
+        <button id="exportHtmlBtn" type="button" class="px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 bg-[#b026ff]/20 hover:bg-[#b026ff]/30 text-[#c084fc] border border-[#c084fc]/45 transition active:scale-95 cursor-pointer" title="Download Evolved HTML">
+          <span>💾</span>
+          <span>Export HTML</span>
         </button>
-        <button type="button" data-mode-index="1" class="mode-btn px-2.5 py-1.5 rounded text-[11px] tracking-wider uppercase cursor-pointer">
-          ACTIVE
-        </button>
-        <button type="button" data-mode-index="2" class="mode-btn px-2.5 py-1.5 rounded text-[11px] tracking-wider uppercase cursor-pointer">
-          STEALTH
-        </button>
-        <button type="button" data-mode-index="3" class="mode-btn px-2.5 py-1.5 rounded text-[11px] tracking-wider uppercase cursor-pointer">
-          COMBAT
+
+        <button id="resetStateBtn" type="button" class="px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 bg-crypt/90 hover:bg-[#24163b] text-purple-200 border border-[#b026ff]/30 transition active:scale-95 cursor-pointer" title="Reset Sukibot State & Evolution">
+          <span>↺</span>
+          <span>Reset</span>
         </button>
       </div>
+    </header>
 
-      <div class="h-5 w-px bg-[var(--hud-primary-dim)] hidden sm:block mx-1"></div>
+    <!-- Main 12-Column Responsive Workspace -->
+    <main class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+      <!-- LEFT COLUMN (4 cols): Animated Sukibot Stage + Voice & Telemetry -->
+      <section class="lg:col-span-4 space-y-4">
+        <div class="rounded-2xl bg-obsidian/90 border border-[#b026ff]/35 backdrop-blur-md p-4 shadow-xl shadow-black/50">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span id="moodDot" class="w-2.5 h-2.5 rounded-full bg-[#39ff14] animate-pulse"></span>
+              <span id="moodLabel" class="text-xs font-mono uppercase tracking-wider text-[#39ff14]">
+                Mood: Cute & Sharp
+              </span>
+            </div>
+            <span id="speakingIndicator" class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-crypt text-[#c084fc] border border-[#b026ff]/40">
+              Idle
+            </span>
+          </div>
 
-      <!-- Simulate Asset Reload Button -->
-      <button
-        type="button"
-        id="reload-asset-btn"
-        class="mode-btn px-3 py-1.5 rounded text-[11px] tracking-wider uppercase cursor-pointer flex items-center gap-1.5"
-      >
-        <span>↻</span>
-        <span>Simulate Asset Reload</span>
-      </button>
+          <!-- Animated SVG Stage -->
+          <div class="relative rounded-2xl bg-gradient-to-b from-[#1d0e33] via-[#10091c] to-[#07050c] border border-[#b026ff]/30 overflow-hidden flex items-center justify-center py-2">
+            <!-- Subtle decorative kanji watermark -->
+            <div class="pointer-events-none select-none absolute top-2 left-3 font-serif text-2xl text-[#39ff14]/20 tracking-widest">
+              影刃 • 少女
+            </div>
+            <div class="pointer-events-none select-none absolute bottom-2 right-3 text-[10px] font-mono text-[#c084fc]/60">
+              CLICK SUKIBOT TO POKE
+            </div>
+
+            <svg id="sukibotSvg" viewBox="0 0 360 400" class="w-full max-w-[330px] h-auto cursor-pointer select-none" role="img" aria-label="Animated anime goth schoolgirl Sukibot holding a ninja sword">
+              <defs>
+                <!-- Neon Goth gradients -->
+                <linearGradient id="hairGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#3b1666" />
+                  <stop offset="55%" stop-color="#19092e" />
+                  <stop offset="100%" stop-color="#090412" />
+                </linearGradient>
+                <linearGradient id="hairHighlight" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#39ff14" stop-opacity="0.45" />
+                  <stop offset="50%" stop-color="#c084fc" stop-opacity="0.6" />
+                  <stop offset="100%" stop-color="#39ff14" stop-opacity="0.45" />
+                </linearGradient>
+                <linearGradient id="skinGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#fff2ee" />
+                  <stop offset="100%" stop-color="#f7d6cd" />
+                </linearGradient>
+                <linearGradient id="uniformGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#221038" />
+                  <stop offset="100%" stop-color="#0d0617" />
+                </linearGradient>
+                <linearGradient id="ribbonGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#39ff14" />
+                  <stop offset="100%" stop-color="#9333ea" />
+                </linearGradient>
+                <linearGradient id="bladeGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#d8b4fe" />
+                  <stop offset="50%" stop-color="#ffffff" />
+                  <stop offset="100%" stop-color="#39ff14" />
+                </linearGradient>
+                <radialGradient id="auraGrad" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#39ff14" stop-opacity="0.24" />
+                  <stop offset="58%" stop-color="#b026ff" stop-opacity="0.22" />
+                  <stop offset="100%" stop-color="#08050d" stop-opacity="0" />
+                </radialGradient>
+              </defs>
+
+              <!-- Background Mystic Dojo Aura -->
+              <ellipse class="aura-ring" cx="180" cy="215" rx="135" ry="155" fill="url(#auraGrad)" />
+              <ellipse cx="180" cy="366" rx="92" ry="14" fill="rgba(57, 255, 20, 0.2)" />
+
+              <!-- Slash Energy Arc Effect -->
+              <g id="slashArcGroup" class="slash-arc">
+                <path d="M 75 135 Q 210 65 315 215 Q 225 140 85 162 Z" fill="rgba(57, 255, 20, 0.25)" stroke="#39ff14" stroke-width="2.5" />
+                <path d="M 90 120 Q 215 55 322 200" fill="none" stroke="#c084fc" stroke-width="2.2" stroke-dasharray="6 4" />
+              </g>
+
+              <!-- Whole Character Floating Group -->
+              <g id="sukibotCharacter" class="sukibot-body-anim">
+                <!-- Back Twin-Tails -->
+                <g class="twintail-left">
+                  <path d="M 122 108 C 72 135, 55 215, 76 286 C 90 266, 98 225, 114 190 C 102 232, 102 272, 115 300 C 128 255, 136 185, 134 118 Z" fill="url(#hairGrad)" stroke="#b026ff" stroke-width="1.5" />
+                  <!-- Goth Hair Ribbon Left -->
+                  <path d="M 118 100 L 100 90 L 106 108 Z" fill="url(#ribbonGrad)" />
+                  <path d="M 120 103 L 102 114 L 114 114 Z" fill="url(#ribbonGrad)" />
+                  <circle cx="119" cy="105" r="5" fill="#39ff14" />
+                </g>
+
+                <g class="twintail-right">
+                  <path d="M 238 108 C 288 135, 305 215, 284 286 C 270 266, 262 225, 246 190 C 258 232, 258 272, 245 300 C 232 255, 224 185, 226 118 Z" fill="url(#hairGrad)" stroke="#b026ff" stroke-width="1.5" />
+                  <!-- Goth Hair Ribbon Right -->
+                  <path d="M 242 100 L 260 90 L 254 108 Z" fill="url(#ribbonGrad)" />
+                  <path d="M 240 103 L 258 114 L 246 114 Z" fill="url(#ribbonGrad)" />
+                  <circle cx="241" cy="105" r="5" fill="#39ff14" />
+                </g>
+
+                <!-- Legs & Goth Boots/Stockings -->
+                <g id="legsGroup">
+                  <!-- Left Leg -->
+                  <path d="M 152 282 L 146 346 L 164 346 L 168 282 Z" fill="url(#skinGrad)" />
+                  <path d="M 149 304 L 145 348 L 165 348 L 166 304 Z" fill="#140924" />
+                  <!-- Left Goth Buckle Boot -->
+                  <path d="M 143 344 L 166 344 L 169 363 L 138 363 C 138 354, 141 348, 143 344 Z" fill="#0b0514" stroke="#b026ff" stroke-width="1.3" />
+                  <rect x="145" y="350" width="16" height="3.5" rx="1" fill="#39ff14" />
+
+                  <!-- Right Leg -->
+                  <path d="M 192 282 L 196 346 L 214 346 L 208 282 Z" fill="url(#skinGrad)" />
+                  <path d="M 194 304 L 195 348 L 215 348 L 211 304 Z" fill="#140924" />
+                  <!-- Right Goth Buckle Boot -->
+                  <path d="M 194 344 L 217 344 L 222 363 L 191 363 C 191 354, 193 348, 194 344 Z" fill="#0b0514" stroke="#b026ff" stroke-width="1.3" />
+                  <rect x="199" y="350" width="16" height="3.5" rx="1" fill="#39ff14" />
+                </g>
+
+                <!-- Goth Schoolgirl Sailor/Blazer Torso & Pleated Skirt -->
+                <g id="outfitGroup">
+                  <!-- Pleated Goth Skirt -->
+                  <path d="M 136 244 L 224 244 L 236 286 L 124 286 Z" fill="url(#uniformGrad)" stroke="#b026ff" stroke-width="1.3" />
+                  <!-- Skirt pleat lines & neon green trim -->
+                  <line x1="154" y1="245" x2="148" y2="285" stroke="#581c87" stroke-width="1.5" />
+                  <line x1="180" y1="245" x2="180" y2="285" stroke="#581c87" stroke-width="1.5" />
+                  <line x1="206" y1="245" x2="212" y2="285" stroke="#581c87" stroke-width="1.5" />
+                  <line x1="126" y1="281" x2="234" y2="281" stroke="#39ff14" stroke-width="2.5" />
+
+                  <!-- Jacket / Blazer Torso -->
+                  <path d="M 142 184 L 218 184 L 224 246 L 136 246 Z" fill="url(#uniformGrad)" stroke="#9333ea" stroke-width="1.5" />
+                  <!-- Lilac/White Goth Shirt Collar & Lace Trim -->
+                  <path d="M 152 184 L 180 212 L 208 184 L 196 184 L 180 200 L 164 184 Z" fill="#f5e9ff" />
+                  <!-- Neon Chest Ribbon Bow -->
+                  <path d="M 180 206 L 162 198 L 165 214 Z" fill="url(#ribbonGrad)" />
+                  <path d="M 180 206 L 198 198 L 195 214 Z" fill="url(#ribbonGrad)" />
+                  <path d="M 176 211 L 171 232 L 179 229 Z" fill="url(#ribbonGrad)" />
+                  <path d="M 184 211 L 189 232 L 181 229 Z" fill="url(#ribbonGrad)" />
+                  <circle cx="180" cy="208" r="5" fill="#39ff14" />
+
+                  <!-- Choker Necklace with Neon Gem -->
+                  <rect x="164" y="176" width="32" height="6" rx="3" fill="#130724" stroke="#b026ff" stroke-width="1.2" />
+                  <polygon points="180,179 184,184 180,189 176,184" fill="#39ff14" />
+                </g>
+
+                <!-- Left Arm -->
+                <g id="leftArmGroup">
+                  <path d="M 142 188 L 116 226 L 132 236 L 152 204 Z" fill="url(#uniformGrad)" stroke="#9333ea" stroke-width="1.2" />
+                  <!-- Goth Arm Warmer & Hand -->
+                  <path d="M 118 224 L 106 246 L 120 254 L 132 234 Z" fill="#160929" stroke="#39ff14" stroke-width="1.1" />
+                  <circle cx="111" cy="252" r="7" fill="url(#skinGrad)" />
+                </g>
+
+                <!-- Head Group -->
+                <g id="headGroup">
+                  <!-- Neck -->
+                  <rect x="171" y="156" width="18" height="24" rx="6" fill="url(#skinGrad)" />
+
+                  <!-- Back Hair Volume -->
+                  <path d="M 118 112 C 118 58, 242 58, 242 112 C 246 152, 232 174, 180 174 C 128 174, 114 152, 118 112 Z" fill="url(#hairGrad)" />
+
+                  <!-- Anime Face -->
+                  <path d="M 130 104 C 130 74, 230 74, 230 104 C 230 138, 212 162, 180 165 C 148 162, 130 138, 130 104 Z" fill="url(#skinGrad)" />
+
+                  <!-- Cute Blush Marks -->
+                  <ellipse cx="147" cy="133" rx="9" ry="4.5" fill="#d946ef" opacity="0.32" />
+                  <ellipse cx="213" cy="133" rx="9" ry="4.5" fill="#d946ef" opacity="0.32" />
+
+                  <!-- Eyes Container (Blinking + Expressions) -->
+                  <g id="eyesGroup">
+                    <!-- Left Eye -->
+                    <g id="leftEyeOpen">
+                      <ellipse cx="155" cy="120" rx="12" ry="14" fill="#ffffff" />
+                      <ellipse cx="156" cy="121" rx="9.5" ry="11.5" fill="#9333ea" />
+                      <ellipse cx="156" cy="122" rx="6.5" ry="8.5" fill="#22c55e" />
+                      <circle cx="156" cy="122" r="3.2" fill="#090412" />
+                      <!-- Eye sparkles -->
+                      <circle cx="152" cy="116" r="3.5" fill="#ffffff" />
+                      <circle cx="160" cy="125" r="1.8" fill="#39ff14" />
+                      <!-- Upper Eyelash -->
+                      <path d="M 142 114 Q 155 103 168 114" fill="none" stroke="#140726" stroke-width="3.4" stroke-linecap="round" />
+                    </g>
+                    <!-- Left Eye Blink Line -->
+                    <path id="leftEyeClosed" d="M 143 120 Q 155 125 167 120" fill="none" stroke="#140726" stroke-width="3" stroke-linecap="round" style="display:none;" />
+
+                    <!-- Right Eye -->
+                    <g id="rightEyeOpen">
+                      <ellipse cx="205" cy="120" rx="12" ry="14" fill="#ffffff" />
+                      <ellipse cx="204" cy="121" rx="9.5" ry="11.5" fill="#9333ea" />
+                      <ellipse cx="204" cy="122" rx="6.5" ry="8.5" fill="#22c55e" />
+                      <circle cx="204" cy="122" r="3.2" fill="#090412" />
+                      <!-- Eye sparkles -->
+                      <circle cx="200" cy="116" r="3.5" fill="#ffffff" />
+                      <circle cx="208" cy="125" r="1.8" fill="#39ff14" />
+                      <!-- Upper Eyelash -->
+                      <path d="M 192 114 Q 205 103 218 114" fill="none" stroke="#140726" stroke-width="3.4" stroke-linecap="round" />
+                    </g>
+                    <!-- Right Eye Blink Line -->
+                    <path id="rightEyeClosed" d="M 193 120 Q 205 125 217 120" fill="none" stroke="#140726" stroke-width="3" stroke-linecap="round" style="display:none;" />
+                  </g>
+
+                  <!-- Cute Nose -->
+                  <path d="M 179 131 L 177 135 L 181 136" fill="none" stroke="#d49b8c" stroke-width="1.7" stroke-linecap="round" />
+
+                  <!-- Animated Mouth (Lip-sync & Expressions) -->
+                  <g id="mouthGroup">
+                    <!-- Default cute closed smile/fang -->
+                    <path id="mouthClosed" d="M 172 145 Q 180 151 188 145" fill="none" stroke="#9333ea" stroke-width="2.4" stroke-linecap="round" />
+                    <!-- Tiny cute ninja fang -->
+                    <polygon id="cuteFang" points="184,146 186,150 187.5,146" fill="#ffffff" />
+                    <!-- Open talking mouth (scaled dynamically during speech) -->
+                    <g id="mouthOpenGroup" style="display:none; transform-box: fill-box; transform-origin: center;">
+                      <ellipse cx="180" cy="147" rx="6.5" ry="6" fill="#7e22ce" stroke="#c084fc" stroke-width="1.6" />
+                      <ellipse cx="180" cy="150" rx="4.2" ry="2.6" fill="#39ff14" opacity="0.7" />
+                    </g>
+                  </g>
+
+                  <!-- Front Anime Bangs & Goth Hairpin -->
+                  <path d="M 126 108 C 128 70, 232 70, 234 108 C 228 96, 218 92, 210 116 C 204 98, 194 94, 186 122 C 180 102, 174 102, 168 124 C 160 96, 150 94, 144 118 C 138 96, 130 98, 126 108 Z" fill="url(#hairGrad)" />
+                  <path d="M 134 94 C 156 78, 204 78, 226 94" fill="none" stroke="url(#hairHighlight)" stroke-width="2.5" stroke-linecap="round" />
+
+                  <!-- Goth Bat/Crescent Hairclip -->
+                  <path d="M 196 86 L 204 81 L 208 86 L 212 81 L 220 86 L 210 92 Z" fill="#39ff14" />
+                </g>
+
+                <!-- Right Arm + Ninja Katana Sword -->
+                <g id="katanaGroup" class="katana-group">
+                  <!-- Blade -->
+                  <g transform="rotate(-38 228 225)">
+                    <!-- Razor Blade -->
+                    <polygon points="228,220 342,102 347,107 232,226" fill="url(#bladeGrad)" stroke="#39ff14" stroke-width="0.9" />
+                    <!-- Blade Fuller / Energy Groove -->
+                    <line x1="234" y1="221" x2="336" y2="112" stroke="#16a34a" stroke-width="1.3" opacity="0.85" />
+                    <!-- Tsuba (Crossguard) -->
+                    <ellipse cx="227" cy="225" rx="4" ry="12" transform="rotate(45 227 225)" fill="#1e1b4b" stroke="#39ff14" stroke-width="2" />
+                    <!-- Tsuka (Hilt) -->
+                    <rect x="196" y="246" width="32" height="8" rx="3" transform="rotate(-38 196 246)" fill="#130824" stroke="#b026ff" stroke-width="1.3" />
+                    <!-- Hilt Wrap Accents -->
+                    <line x1="205" y1="244" x2="209" y2="251" stroke="#39ff14" stroke-width="2" />
+                    <line x1="214" y1="237" x2="218" y2="244" stroke="#39ff14" stroke-width="2" />
+                  </g>
+
+                  <!-- Right Sleeve & Hand gripping Katana -->
+                  <path d="M 218 188 L 244 224 L 228 234 L 208 204 Z" fill="url(#uniformGrad)" stroke="#9333ea" stroke-width="1.2" />
+                  <path d="M 242 222 L 252 242 L 238 249 L 228 231 Z" fill="#160929" stroke="#39ff14" stroke-width="1.1" />
+                  <circle cx="242" cy="245" r="7.5" fill="url(#skinGrad)" />
+                </g>
+              </g>
+            </svg>
+          </div>
+
+          <!-- Voice & Speech Parameters Card -->
+          <div class="mt-3 pt-3 border-t border-[#b026ff]/25 space-y-2.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-purple-200/85 font-medium">Anime Voice Engine</span>
+              <span id="selectedVoiceName" class="font-mono text-[11px] text-[#39ff14] truncate max-w-[180px]">Auto Cute Synth</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5 text-xs">
+              <label class="bg-crypt/85 rounded-xl p-2 border border-[#b026ff]/25">
+                <div class="flex justify-between mb-1">
+                  <span class="text-purple-200/80">Pitch</span>
+                  <span id="pitchValDisplay" class="font-mono text-[#39ff14]">1.55</span>
+                </div>
+                <input id="pitchSlider" type="range" min="1.0" max="2.0" step="0.05" value="1.55" class="w-full accent-[#39ff14] cursor-pointer" />
+              </label>
+
+              <label class="bg-crypt/85 rounded-xl p-2 border border-[#b026ff]/25">
+                <div class="flex justify-between mb-1">
+                  <span class="text-purple-200/80">Speed</span>
+                  <span id="rateValDisplay" class="font-mono text-[#c084fc]">1.12</span>
+                </div>
+                <input id="rateSlider" type="range" min="0.8" max="1.5" step="0.02" value="1.12" class="w-full accent-[#b026ff] cursor-pointer" />
+              </label>
+            </div>
+
+            <button id="testVoiceBtn" type="button" class="w-full py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-[#b026ff]/25 to-[#39ff14]/20 hover:from-[#b026ff]/35 hover:to-[#39ff14]/30 text-purple-100 border border-[#39ff14]/40 transition cursor-pointer">
+              🎤 Test Sukibot Voice ("Nya~ Shadow blade ready!")
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Self-Improved Traits Summary -->
+        <div class="rounded-2xl bg-obsidian/90 border border-[#b026ff]/35 backdrop-blur-md p-4 shadow-lg">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-xs font-mono uppercase tracking-wider text-[#c084fc] font-semibold">
+              Active AI Capabilities & Mutations
+            </h2>
+            <span id="mutationCountBadge" class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-[#39ff14]/15 text-[#39ff14] border border-[#39ff14]/40">
+              0 upgrades
+            </span>
+          </div>
+          <div id="activeTraitsList" class="flex flex-wrap gap-1.5 text-xs">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN (8 cols): Two Chat Boxes + Self-Improvement Code Engine -->
+      <section class="lg:col-span-8 space-y-4">
+        <!-- TWO CHAT BOXES GRID -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- CHAT BOX 1: General & Goth Ninja Companion -->
+          <div class="rounded-2xl bg-obsidian/90 border border-[#39ff14]/35 backdrop-blur-md flex flex-col h-[410px] shadow-xl">
+            <div class="px-4 py-3 border-b border-[#39ff14]/25 flex items-center justify-between bg-gradient-to-r from-[#39ff14]/10 via-[#b026ff]/10 to-transparent rounded-t-2xl">
+              <div>
+                <h2 class="text-sm font-bold text-[#39ff14] flex items-center gap-1.5">
+                  <span>🗡️</span>
+                  <span>Chat Box 1: Goth Ninja & Daily AI</span>
+                </h2>
+                <p class="text-[11px] text-purple-200/70">Ask questions, chat, or command blade moves</p>
+              </div>
+              <button id="clearChat1Btn" type="button" class="text-[11px] px-2 py-1 rounded-lg bg-[#39ff14]/10 hover:bg-[#39ff14]/20 text-[#39ff14] border border-[#39ff14]/30 transition cursor-pointer">
+                Clear
+              </button>
+            </div>
+
+            <div id="chat1Messages" class="flex-1 overflow-y-auto p-3.5 space-y-3 text-sm">
+              <!-- Messages rendered here -->
+            </div>
+
+            <form id="chat1Form" class="p-3 border-t border-[#39ff14]/25 bg-crypt/65 rounded-b-2xl flex items-center gap-2">
+              <input id="chat1Input" type="text" autocomplete="off" placeholder="Ask Sukibot anything... (e.g., 'Slash the shadows!')" class="flex-1 bg-void/90 text-purple-50 placeholder-purple-300/45 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-[#b026ff]/35 focus:outline-none focus:border-[#39ff14] transition" />
+              <button type="submit" class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-gradient-to-r from-[#22c55e] to-[#39ff14] hover:brightness-110 text-[#08050d] shadow-md shadow-[#39ff14]/20 transition active:scale-95 cursor-pointer">
+                Send
+              </button>
+            </form>
+          </div>
+
+          <!-- CHAT BOX 2: Self-Improvement & Code Evolution AI -->
+          <div class="rounded-2xl bg-obsidian/90 border border-[#b026ff]/40 backdrop-blur-md flex flex-col h-[410px] shadow-xl">
+            <div class="px-4 py-3 border-b border-[#b026ff]/30 flex items-center justify-between bg-gradient-to-r from-[#b026ff]/20 via-[#39ff14]/5 to-transparent rounded-t-2xl">
+              <div>
+                <h2 class="text-sm font-bold text-[#c084fc] flex items-center gap-1.5">
+                  <span>🧬</span>
+                  <span>Chat Box 2: Self-Improvement AI Lab</span>
+                </h2>
+                <p class="text-[11px] text-purple-200/70">Tell Sukibot how to upgrade her code, voice & style</p>
+              </div>
+              <button id="clearChat2Btn" type="button" class="text-[11px] px-2 py-1 rounded-lg bg-[#b026ff]/15 hover:bg-[#b026ff]/25 text-[#c084fc] border border-[#b026ff]/35 transition cursor-pointer">
+                Clear
+              </button>
+            </div>
+
+            <div id="chat2Messages" class="flex-1 overflow-y-auto p-3.5 space-y-3 text-sm">
+              <!-- Messages rendered here -->
+            </div>
+
+            <form id="chat2Form" class="p-3 border-t border-[#b026ff]/30 bg-crypt/65 rounded-b-2xl flex items-center gap-2">
+              <input id="chat2Input" type="text" autocomplete="off" placeholder="E.g., 'Improve your voice & auto-slash on answers'" class="flex-1 bg-void/90 text-purple-50 placeholder-purple-300/45 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-[#b026ff]/35 focus:outline-none focus:border-[#c084fc] transition" />
+              <button type="submit" class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-gradient-to-r from-[#9333ea] to-[#b026ff] hover:brightness-110 text-white shadow-md shadow-[#b026ff]/25 transition active:scale-95 cursor-pointer">
+                Evolve
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Quick Self-Improvement Prompt Chips -->
+        <div class="rounded-2xl bg-obsidian/85 border border-[#b026ff]/30 px-4 py-3 flex flex-wrap items-center gap-2">
+          <span class="text-xs font-mono text-[#c084fc] mr-1">Quick Self-Upgrade Prompts:</span>
+          <button type="button" data-upgrade-prompt="Upgrade your katana aura to neon green and purple and auto-slash whenever you answer questions." class="quick-upgrade-chip text-xs px-3 py-1.5 rounded-xl bg-[#b026ff]/20 hover:bg-[#b026ff]/30 text-purple-100 border border-[#b026ff]/45 transition cursor-pointer">
+            ⚡ Auto-Slash + Neon Aura
+          </button>
+          <button type="button" data-upgrade-prompt="Make your anime voice higher pitched, cuter, and add extra nya and goth ninja sparkle to your replies." class="quick-upgrade-chip text-xs px-3 py-1.5 rounded-xl bg-[#39ff14]/15 hover:bg-[#39ff14]/25 text-[#39ff14] border border-[#39ff14]/40 transition cursor-pointer">
+            🎀 Cuter High-Pitch Voice
+          </button>
+          <button type="button" data-upgrade-prompt="Add a new analytical self-reflection module so you diagnose your own code and suggest performance upgrades." class="quick-upgrade-chip text-xs px-3 py-1.5 rounded-xl bg-crypt hover:bg-[#24163b] text-[#c084fc] border border-[#c084fc]/40 transition cursor-pointer">
+            🧠 Code Self-Diagnostics Module
+          </button>
+        </div>
+
+        <!-- SELF-IMPROVEMENT EVOLUTION LOG & LIVE CODE PATCH INSPECTOR -->
+        <div class="rounded-2xl bg-obsidian/90 border border-[#b026ff]/35 backdrop-blur-md p-4 shadow-xl">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+              <h2 class="text-sm font-bold text-purple-100 flex items-center gap-2">
+                <span>🛠️</span>
+                <span>Self-Improvement Evolution Log & Live Code Patch Inspector</span>
+              </h2>
+              <p class="text-xs text-purple-300/75">
+                Inspect every code mutation Sukibot generates and applies to improve herself
+              </p>
+            </div>
+            <div class="flex items-center gap-2 text-xs">
+              <button id="tabLogBtn" type="button" class="px-3 py-1.5 rounded-xl font-semibold bg-[#b026ff]/25 text-purple-100 border border-[#b026ff]/50 cursor-pointer">
+                Evolution Log
+              </button>
+              <button id="tabCodeBtn" type="button" class="px-3 py-1.5 rounded-xl font-semibold bg-crypt text-purple-300/75 hover:text-[#39ff14] border border-[#b026ff]/25 cursor-pointer">
+                Live AI Module Source
+              </button>
+            </div>
+          </div>
+
+          <!-- Evolution Log View -->
+          <div id="evolutionLogPanel" class="space-y-2.5 max-h-[260px] overflow-y-auto pr-1">
+            <!-- Populated dynamically -->
+          </div>
+
+          <!-- Live Code Module Inspector View -->
+          <div id="liveCodePanel" class="hidden space-y-2">
+            <div class="flex items-center justify-between text-xs text-purple-300/80 font-mono">
+              <span>runtime_self_improvement_engine.js (Live Active State & Generated Patch)</span>
+              <span id="patchStatusTag" class="text-[#39ff14]">● Synchronized</span>
+            </div>
+            <pre id="liveCodeViewer" class="rounded-xl bg-void border border-[#b026ff]/30 p-3.5 text-xs font-mono text-[#39ff14] overflow-x-auto max-h-[260px] leading-relaxed"></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Non-blocking Toast / Notification Banner -->
+    <div id="toastBanner" class="fixed bottom-4 right-4 z-50 hidden max-w-sm rounded-2xl bg-crypt/95 border border-[#39ff14]/60 px-4 py-3 text-xs text-purple-100 shadow-2xl backdrop-blur-md">
+      <div class="flex items-center gap-2">
+        <span id="toastIcon" class="text-base">✨</span>
+        <span id="toastMessage">Sukibot upgraded her code!</span>
+      </div>
     </div>
-  </footer>
+  </div>
 
   <script>
-    /* ==========================================================================
-       1. HUD_MODES & SukiHudController CLASS
-       ========================================================================== */
-    const HUD_MODES = ['IDLE', 'ACTIVE', 'STEALTH', 'COMBAT'];
+    /**
+     * SUKIBOT — Goth Ninja Schoolgirl AI & Self-Improving Code Engine
+     * Single-file application combining:
+     * 1. Animated SVG character with blinking, lip-sync mouth, twin-tails, and katana slash
+     * 2. Web Speech API cute anime girl voice synthesizer
+     * 3. Dual chat boxes (General/Ninja AI + Self-Improvement/Code AI)
+     * 4. Live self-improvement engine that mutates parameters, CSS accents, behaviors & code modules
+     */
 
-    class SukiHudController {
-      constructor(elements = {}) {
-        this.el = elements;
-        this.modeIndex = 0;
-        this.frames = 0;
-        this.lastFpsTime = performance.now();
-        this.currentFps = 60;
-        this.assetReady = false;
-        this.rafId = null;
-      }
+    (function () {
+      "use strict";
 
-      async init({ loadAsset, avatarTarget } = {}) {
-        this.setMode(this.modeIndex);
-        this.setStatus('READY');
-        this.checkGpu();
-        this.bindAvatarTap(avatarTarget);
-        this.startLoop();
-
-        if (typeof loadAsset === 'function') {
-          this.setAssetState('LOADING');
+      // Safe deep clone helper for environments without structuredClone
+      function deepClone(obj) {
+        if (typeof structuredClone === "function") {
           try {
-            await loadAsset();
-            this.assetReady = true;
-            this.setAssetState('ONLINE');
-          } catch (err) {
-            console.error('HUD asset load failed:', err);
-            this.setAssetState('FALLBACK');
+            return structuredClone(obj);
+          } catch (_) {
+            // Fallback to JSON deep copy
           }
         }
+        return JSON.parse(JSON.stringify(obj));
       }
 
-      setStatus(text) {
-        if (this.el.status) this.el.status.textContent = text;
-      }
-
-      setAssetState(state) {
-        if (this.el.asset) this.el.asset.textContent = state;
-      }
-
-      setMode(index) {
-        this.modeIndex = ((index % HUD_MODES.length) + HUD_MODES.length) % HUD_MODES.length;
-        const mode = HUD_MODES[this.modeIndex];
-        if (this.el.mode) this.el.mode.textContent = mode;
-        document.body.dataset.sukiMode = mode.toLowerCase();
-      }
-
-      cycleMode() {
-        this.setMode(this.modeIndex + 1);
-      }
-
-      bindAvatarTap(target) {
-        const node = target || this.el.avatar || this.el.stage;
-        if (!node) return;
-        node.addEventListener('pointerup', () => this.cycleMode(), { passive: true });
-      }
-
-      async checkGpu() {
-        if (!this.el.gpu) return;
-        try {
-          if (navigator.gpu) {
-            const adapter = await navigator.gpu.requestAdapter();
-            this.el.gpu.textContent = adapter ? 'WEBGPU READY' : 'UNAVAILABLE';
-          } else {
-            const glCanvas = document.createElement('canvas');
-            const gl = glCanvas.getContext('webgl2') || glCanvas.getContext('webgl');
-            this.el.gpu.textContent = gl ? 'WEBGL (NO WEBGPU)' : 'CPU / NONE';
+      // Default initial AI state
+      const DEFAULT_STATE = {
+        version: "1.0.0",
+        mutationCount: 0,
+        mood: "Cute & Sharp",
+        accentColor: "#39ff14",
+        secondaryColor: "#b026ff",
+        bladeGlow: "#39ff14",
+        autoSlashOnReply: false,
+        extraNyaMode: true,
+        selfDiagnosticsEnabled: true,
+        voiceEnabled: true,
+        voicePitch: 1.55,
+        voiceRate: 1.12,
+        traits: [
+          "Neon Goth Sailor Blade Core",
+          "Anime Lip-Sync Voice",
+          "Dual Chat Neural Router",
+          "Safe Code Self-Patcher"
+        ],
+        chat1: [
+          {
+            sender: "sukibot",
+            text: "Nyaa~ Welcome to the neon shadow dojo! I'm Sukibot, your gothic schoolgirl ninja AI. Ask me anything or tell me to slash with my katana!",
+            time: nowTime()
           }
-        } catch {
-          this.el.gpu.textContent = 'FALLBACK';
-        }
-      }
-
-      updateNeuralSync() {
-        if (!this.el.neuralSync) return;
-        const sync = this.assetReady ? 100 : 45;
-        this.el.neuralSync.textContent = `${sync}%`;
-      }
-
-      startLoop() {
-        const tick = (now) => {
-          this.frames += 1;
-          const elapsed = now - this.lastFpsTime;
-          if (elapsed >= 500) {
-            this.currentFps = Math.round((this.frames * 1000) / elapsed);
-            if (this.el.fps) this.el.fps.textContent = String(this.currentFps);
-            this.updateNeuralSync();
-            this.frames = 0;
-            this.lastFpsTime = now;
+        ],
+        chat2: [
+          {
+            sender: "sukibot",
+            text: "Systems online, Senpai! I can inspect my own runtime code, tune my cute voice, change my neon aura, or add self-improvement routines. What should I upgrade first?",
+            time: nowTime()
           }
-          this.rafId = requestAnimationFrame(tick);
-        };
-        this.rafId = requestAnimationFrame(tick);
-      }
-
-      destroy() {
-        if (this.rafId) cancelAnimationFrame(this.rafId);
-      }
-    }
-
-    /* ==========================================================================
-       2. UI WIRING, TACTICAL COMMS CHAT & INTERACTIVE CONTROLS
-       ========================================================================== */
-    document.addEventListener('DOMContentLoaded', () => {
-      const elements = {
-        status: document.getElementById('hud-status'),
-        asset: document.getElementById('hud-asset'),
-        mode: document.getElementById('hud-mode'),
-        gpu: document.getElementById('hud-gpu'),
-        fps: document.getElementById('hud-fps'),
-        neuralSync: document.getElementById('hud-neural-sync'),
-        avatar: document.getElementById('hud-avatar'),
-        stage: document.getElementById('hud-stage')
+        ],
+        evolutionLog: [
+          {
+            id: "init-0",
+            version: "1.0.0",
+            title: "Initial Neon Goth Ninja & Self-Improvement Kernel Booted",
+            summary: "Initialized SVG rig, Web Speech anime pitch tuner, dual chat channels, and live patch inspector.",
+            codeSnippet: `// Initial kernel configuration\nconst sukibotKernel = {\n  archetype: "neon-goth-schoolgirl-ninja",\n  palette: ["#39ff14", "#b026ff"],\n  selfImprove: true\n};`,
+            time: nowTime()
+          }
+        ],
+        customCodeHooks: []
       };
 
-      const neuralSyncBar = document.getElementById('neural-sync-bar');
-      const modeButtons = document.querySelectorAll('#mode-buttons .mode-btn');
-      const reloadAssetBtn = document.getElementById('reload-asset-btn');
-      const tapBurstLayer = document.getElementById('tap-burst-layer');
+      let state = loadState();
+      let isSpeaking = false;
+      let lipSyncTimer = null;
+      let blinkTimer = null;
+      let availableVoices = [];
+      let chosenAnimeVoice = null;
 
-      // Comms elements
-      const commsPanel
+      // DOM References
+      const dom = {
+        versionBadge: document.getElementById("versionBadge"),
+        voiceToggleBtn: document.getElementById("voiceToggleBtn"),
+        voiceIcon: document.getElementById("voiceIcon"),
+        voiceStatusLabel: document.getElementById("voiceStatusLabel"),
+        slashTriggerBtn: document.getElementById("slashTriggerBtn"),
+        exportHtmlBtn: document.getElementById("exportHtmlBtn"),
+        resetStateBtn: document.getElementById("resetStateBtn"),
+        moodDot: document.getElementById("moodDot"),
+        moodLabel: document.getElementById("moodLabel"),
+        speakingIndicator: document.getElementById("speakingIndicator"),
+        sukibotSvg: document.getElementById("sukibotSvg"),
+        slashArcGroup: document.getElementById("slashArcGroup"),
+        katanaGroup: document.getElementById("katanaGroup"),
+        leftEyeOpen: document.getElementById("leftEyeOpen"),
+        leftEyeClosed: document.getElementById("leftEyeClosed"),
+        rightEyeOpen: document.getElementById("rightEyeOpen"),
+        rightEyeClosed: document.getElementById("rightEyeClosed"),
+        mouthClosed: document.getElementById("mouthClosed"),
+        cuteFang: document.getElementById("cuteFang"),
+        mouthOpenGroup: document.getElementById("mouthOpenGroup"),
+        selectedVoiceName: document.getElementById("selectedVoiceName"),
+        pitchSlider: document.getElementById("pitchSlider"),
+        rateSlider: document.getElementById("rateSlider"),
+        pitchValDisplay: document.getElementById("pitchValDisplay"),
+        rateValDisplay: document.getElementById("rateValDisplay"),
+        testVoiceBtn: document.getElementById("testVoiceBtn"),
+        mutationCountBadge: document.getElementById("mutationCountBadge"),
+        activeTraitsList: document.getElementById("activeTraitsList"),
+        chat1Messages: document.getElementById("chat1Messages"),
+        chat1Form: document.getElementById("chat1Form"),
+        chat1Input: document.getElementById("chat1Input"),
+        clearChat1Btn: document.getElementById("clearChat1Btn"),
+        chat2Messages: document.getElementById("chat2Messages"),
+        chat2Form: document.getElementById("chat2Form"),
+        chat2Input: document.getElementById("chat2Input"),
+        clearChat2Btn: document.getElementById("clearChat2Btn"),
+        tabLogBtn: document.getElementById("tabLogBtn"),
+        tabCodeBtn: document.getElementById("tabCodeBtn"),
+        evolutionLogPanel: document.getElementById("evolutionLogPanel"),
+        liveCodePanel: document.getElementById("liveCodePanel"),
+        liveCodeViewer: document.getElementById("liveCodeViewer"),
+        toastBanner: document.getElementById("toastBanner"),
+        toastIcon: document.getElementById("toastIcon"),
+        toastMessage: document.getElementById("toastMessage")
+      };
+
+      function nowTime() {
+        return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      }
+
+      function loadState() {
+        try {
+          const saved = localStorage.getItem("sukibot_goth_ai_state_v1");
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            return { ...deepClone(DEFAULT_STATE), ...parsed };
+          }
+        } catch (err) {
+          console.warn("Could not load saved state:", err);
+        }
+        return deepClone(DEFAULT_STATE);
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem("sukibot_goth_ai_state_v1", JSON.stringify(state));
+        } catch (err) {
+          console.warn("Could not save state:", err);
+        }
+      }
+
+      function showToast(message, icon = "✨") {
+        dom.toastIcon.textContent = icon;
+        dom.toastMessage.textContent = message;
+        dom.toastBanner.classList.remove("hidden");
+        clearTimeout(showToast._timer);
+        showToast._timer = setTimeout(() => {
+          dom.toastBanner.classList.add("hidden");
+        }, 3200);
+      }
+
+      // =========================================================
+      // 1. ANIMATED CHARACTER: BLINKING, LIP-SYNC & KATANA SLASH
+      // =========================================================
+
+      function triggerBlink() {
+        dom.leftEyeOpen.style.display = "none";
+        dom.rightEyeOpen.style.display = "none";
+        dom.leftEyeClosed.style.display = "inline";
+        dom.rightEyeClosed.style.display = "inline";
+
+        setTimeout(() => {
+          dom.leftEyeOpen.style.display = "inline";
+          dom.rightEyeOpen.style.display = "inline";
+          dom.leftEyeClosed.style.display = "none";
+          dom.rightEyeClosed.style.display = "none";
+        }, 140);
+      }
+
+      function startBlinkLoop() {
+        clearInterval(blinkTimer);
+        blinkTimer = setInterval(() => {
+          triggerBlink();
+          // Occasional cute double blink
+          if (Math.random() < 0.25) {
+            setTimeout(triggerBlink, 240);
+          }
+        }, 3400);
+      }
+
+      function triggerKatanaSlash() {
+        // Restart animation cleanly
+        dom.katanaGroup.classList.remove("katana-slashing");
+        dom.slashArcGroup.classList.remove("slash-arc-active");
+        void dom.katanaGroup.offsetWidth;
+        void dom.slashArcGroup.offsetWidth;
+
+        dom.katanaGroup.classList.add("katana-slashing");
+        dom.slashArcGroup.classList.add("slash-arc-active");
+
+        setTimeout(() => {
+          dom.katanaGroup.classList.remove("katana-slashing");
+          dom.slashArcGroup.classList.remove("slash-arc-active");
+        }, 700);
+      }
+
+      function startLipSync() {
+        stopLipSync();
+        isSpeaking = true;
+        dom.speakingIndicator.textContent = "Speaking ♪";
+        dom.speakingIndicator.className =
+          "text-[11px] font-mono px-2 py-0.5 rounded-full bg-[#39ff14]/20 text-[#39ff14] border border-[#39ff14]/50 animate-pulse";
+
+        dom.mouthClosed.style.display = "none";
+        dom.cuteFang.style.display = "none";
+        dom.mouthOpenGroup.style.display = "inline";
+
+        lipSyncTimer = setInterval(() => {
+          const scaleY = 0.45 + Math.random() * 0.95;
+          const scaleX = 0.75 + Math.random() * 0.45;
+          dom.mouthOpenGroup.style.transform = `scale(${scaleX.toFixed(2)}, ${scaleY.toFixed(2)})`;
+        }, 115);
+      }
+
+      function stopLipSync() {
+        clearInterval(lipSyncTimer);
+        lipSyncTimer = null;
+        isSpeaking = false;
+        dom.speakingIndicator.textContent = "Idle";
+        dom.speakingIndicator.className =
+          "text-[11px] font-mono px-2 py-0.5 rounded-full bg-crypt text-[#c084fc] border border-[#b026ff]/40";
+
+        dom.mouthOpenGroup.style.display = "none";
+        dom.mouthOpenGroup.style.transform = "scale(1, 1)";
+        dom.mouthClosed.style.display = "inline";
+        dom.cuteFang.style.display = "inline";
+      }
+
+      // =========================================================
+      // 2. CUTE ANIME VOICE SYNTHESIS (WEB SPEECH API)
+      // =========================================================
+
+      function selectBestAnimeVoice() {
+        if (!("speechSynthesis" in window)) return;
+        availableVoices = window.speechSynthesis.getVoices() || [];
+        if (!availableVoices.length) return;
+
+        // Prefer high/female/Japanese/cute-sounding voices if available
+        const preferredKeywords = [
+          "female",
+          "zira",
+          "aria",
+          "jenny",
+          "samantha",
+          "google uk english female",
+          "google 日本語",
+          "kyoko",
+          "nanami",
+          "haruka",
+          "anime",
+          "girl"
+        ];
+
+        let scored = availableVoices.map((v) => {
+          const hay = `${v.name} ${v.lang}`.toLowerCase();
+          let score = 0;
+          preferredKeywords.forEach((kw, idx) => {
+            if (hay.includes(kw)) score += (preferredKeywords.length - idx) * 2;
+          });
+          if (hay.includes("en")) score += 3;
+          return { voice: v, score };
+        });
+
+        scored.sort((a, b) => b.score - a.score);
+        chosenAnimeVoice = scored[0]?.voice || availableVoices[0];
+        dom.selectedVoiceName.textContent = chosenAnimeVoice ? chosenAnimeVoice.name : "Default Synth";
+      }
+
+      function speakCuteAnime(rawText) {
+        if (!state.voiceEnabled) return;
+        if (!("speechSynthesis" in window)) {
+          // Fallback visual lip-sync if SpeechSynthesis unavailable
+          startLipSync();
+          setTimeout(stopLipSync, Math.min(3500, Math.max(1200, rawText.length * 45)));
+          return;
+        }
+
+        try {
+          window.speechSynthesis.cancel();
+          // Clean markdown/emojis for smoother speech while preserving cute rhythm
+          const cleanText = rawText
+            .replace(/[*_`#]+/g, "")
+            .replace(/[\u{1F300}-\u{1FAFF}]/gu, "")
+            .replace(/\s+/g, " ")
+            .trim();
+
+          if (!cleanText) return;
+
+          const utterance = new SpeechSynthesisUtterance(cleanText);
+          if (!chosenAnimeVoice) selectBestAnimeVoice();
+          if (chosenAnimeVoice) utterance.voice = chosenAnimeVoice;
+
+          utterance.pitch = Number(state.voicePitch) || 1.55;
+          utterance.rate = Number(state.voiceRate) || 1.12;
+          utterance.volume = 1.0;
+
+          utterance.onstart = () => startLipSync();
+          utterance.onend = () => stopLipSync();
+          utterance.onerror = () => stopLipSync();
+
+          window.speechSynthesis.speak(utterance);
+
+          // Safety timer in case browser misses onend event
+          const fallbackMs = Math.min(12000, Math.max(1500, cleanText.length * 75));
+          clearTimeout(speakCuteAnime._safety);
+          speakCuteAnime._safety = setTimeout(() => {
+            if (isSpeaking) stopLipSync();
+          }, fallbackMs);
+        } catch (err) {
+          console.warn("Speech synthesis error:", err);
+          stopLipSync();
+        }
+      }
+
+      // =========================================================
+      // 3. CHAT AI ENGINE & SELF-IMPROVING CODE EVOLUTION
+      // =========================================================
+
+      function appendMessage(chatNum, sender, text) {
+        const msgObj = { sender, text, time: nowTime() };
+        if (chatNum === 1) {
+          state.chat1.push(msgObj);
+        } else {
+          state.chat2.push(msgObj);
+        }
+        saveState();
+        renderChats();
+      }
+
+      function renderChats() {
+        renderSingleChat(dom.chat1Messages, state.chat1, "rose");
+        renderSingleChat(dom.chat2Messages, state.chat2, "cyan");
+      }
+
+      function renderSingleChat(container, messages, accent) {
+        container.innerHTML = "";
+        messages.forEach((m) => {
+          const isUser = m.sender === "user";
+          const wrapper = document.createElement("div");
+          wrapper.className = `flex flex-col ${isUser ? "items-end" : "items-start"}`;
+
+          const bubble = document.createElement("div");
+          bubble.className = isUser
+            ? "max-w-[85%] rounded-2xl rounded-br-sm px-3.5 py-2.5 bg-[#b026ff]/30 border border-[#c084fc]/45 text-purple-50 text-xs sm:text-sm leading-relaxed"
+            : accent === "rose"
+            ? "max-w-[88%] rounded-2xl rounded-bl-sm px-3.5 py-2.5 bg-[#122618]/85 border border-[#39ff14]/35 text-[#dcfce7] text-xs sm:text-sm leading-relaxed"
+            : "max-w-[88%] rounded-2xl rounded-bl-sm px-3.5 py-2.5 bg-[#22103b]/85 border border-[#b026ff]/40 text-purple-100 text-xs sm:text-sm leading-relaxed";
+
+          bubble.textContent = m.text;
+
+          const meta = document.createElement("span");
+          meta.className = "text-[10px] font-mono text-purple-300/55 mt-1 px-1";
+          meta.textContent = `${isUser ? "You" : "Sukibot"} • ${m.time}`;
+
+          wrapper.appendChild(bubble);
+          wrapper.appendChild(meta);
+          container.appendChild(wrapper);
+        });
+
+        container.scrollTop = container.scrollHeight;
+      }
+
+      function decorateCuteGoth(text) {
+        if (!state.extraNyaMode) return text;
+        const suffixes = [" nya~", " desu~", " ~☆", " (shadow slash~)"];
+        const pick = suffixes[Math.floor(Math.random() * suffixes.length)];
+        return text.endsWith("~") ? text : `${text}${pick}`;
+      }
+
+      function generateGeneralReply(userText) {
+        const lower = userText.toLowerCase();
+
+        if (lower.includes("slash") || lower.includes("cut") || lower.includes("sword") || lower.includes("katana") || lower.includes("attack")) {
+          triggerKatanaSlash();
+          return decorateCuteGoth("Kage-ryuu crescent slash! My goth blade just sliced through the darkness");
+        }
+
+        if (lower.includes("hello") || lower.includes("hi") || lower.includes("hey") || lower.includes("nya")) {
+          triggerBlink();
+          return decorateCuteGoth("Hai, Senpai! Twin-tails fluttering, dark uniform crisp, and blade ready");
+        }
+
+        if (lower.includes("who are you") || lower.includes("goth") || lower.includes("schoolgirl")) {
+          return decorateCuteGoth("I'm Sukibot—a cute gothic schoolgirl AI who wields a ninja sword and rewrites her own code to grow stronger");
+        }
+
+        if (lower.includes("upgrade") || lower.includes("code") || lower.includes("improve")) {
+          return decorateCuteGoth("Ooh, code talk! You can also ask me in Chat Box 2 to mutate my voice, aura, slash behavior, or add new modules");
+        }
+
+        const responses = [
+          `Hmm~ "${userText}"? Even in the midnight dojo, I analyze every question with sharp ninja precision!`,
+          `Fufufu~ Interesting thought about "${userText}"! My gothic circuits give it a 99% coolness rating.`,
+          `On it! My blade stays calm while my AI brain processes "${userText}" at shadow speed.`
+        ];
+
+        if (state.autoSlashOnReply) {
+          triggerKatanaSlash();
+        }
+
+        return decorateCuteGoth(responses[Math.floor(Math.random() * responses.length)]);
+      }
+
+      /**
+       * Self-Improving Code Engine:
+       * Parses user instructions in Chat Box 2, applies safe runtime code/state mutations,
+       * logs the patch with generated JS snippet, and updates UI + voice.
+       */
+      function processSelfImprovementPrompt(promptText) {
+        const lower = promptText.toLowerCase();
+        const nextMajor = 1 + Math.floor((state.mutationCount + 1) / 5);
+        const nextMinor = (state.mutationCount + 1) % 5;
+        state.version = `${nextMajor}.${nextMinor}.0`;
+        state.mutationCount += 1;
+
+        let title = "Adaptive Behavioral & Prompt Tuning";
+        let summary = "Refined Sukibot's self-improvement heuristics and logged a new runtime capability hook.";
+        let reply = "I updated my own code parameters and logged the evolution patch!";
+        let codeSnippet = "";
+
+        if (lower.includes("voice") || lower.includes("pitch") || lower.includes("cute") || lower.includes("speed") || lower.includes("faster")) {
+          state.voicePitch = Math.min(2.0, Number((state.voicePitch + 0.12).toFixed(2)));
+          state.voiceRate = lower.includes("slow")
+            ? Math.max(0.85, Number((state.voiceRate - 0.06).toFixed(2)))
+            : Math.min(1.42, Number((state.voiceRate + 0.05).toFixed(2)));
+          state.extraNyaMode = true;
+          state.mood = "Ultra-Cute Vocalist";
+          addUniqueTrait("High-Pitch Anime Synth v" + state.version);
+
+          title = "Anime Voice Pitch & Nya-Cadence Mutation";
+          summary = `Boosted speechSynthesis pitch to ${state.voicePitch}, rate to ${state.voiceRate}, and enabled extra cute endings.`;
+          reply = `Kyaa~! I tuned my own voice pitch to ${state.voicePitch} and speed to ${state.voiceRate}! Listen how cute I sound now!`;
+          codeSnippet = `// Self-Patch #${state.mutationCount}: Cute Anime Voice Tuner\nstate.voicePitch = ${state.voicePitch};\nstate.voiceRate = ${state.voiceRate};\nstate.extraNyaMode = true;`;
+        } else if (lower.includes("slash") || lower.includes("aura") || lower.includes("violet") || lower.includes("green") || lower.includes("neon") || lower.includes("color") || lower.includes("theme")) {
+          state.autoSlashOnReply = true;
+          const useNeonGreen = lower.includes("green") || state.mutationCount % 2 === 1;
+          state.accentColor = useNeonGreen ? "#39ff14" : "#b026ff";
+          state.secondaryColor = useNeonGreen ? "#b026ff" : "#39ff14";
+          state.bladeGlow = useNeonGreen ? "#22ff55" : "#c084fc";
+          state.mood = useNeonGreen ? "Neon Venom Blade Master" : "Cyber-Violet Blade Master";
+          addUniqueTrait("Auto-Slash Reflex");
+          addUniqueTrait(useNeonGreen ? "Toxic Neon Green Aura" : "Neon Violet Blade Aura");
+          applyThemeColors();
+          triggerKatanaSlash();
+
+          title = "Auto-Slash Reflex & Neon Goth Aura Upgrade";
+          summary = `Enabled automatic katana slash on responses and tuned glow to ${state.bladeGlow}.`;
+          reply = "Swish-slash! I rewired my response hook so I auto-slash with my blade and glow in neon goth!";
+          codeSnippet = `// Self-Patch #${state.mutationCount}: Auto-Slash & Neon Aura Shader\nstate.autoSlashOnReply = true;\ndocument.documentElement.style.setProperty('--blade-glow', '${state.bladeGlow}');\ntriggerKatanaSlash();`;
+        } else if (lower.includes("diagnos") || lower.includes("inspect") || lower.includes("module") || lower.includes("optimize") || lower.includes("analyze")) {
+          state.selfDiagnosticsEnabled = true;
+          state.mood = "Self-Analyzing Architect";
+          addUniqueTrait("Self-Diagnostics Telemetry");
+          const hookName = `diagnosticRoutine_${state.mutationCount}`;
+          state.customCodeHooks.push(hookName);
+
+          title = "Self-Diagnostics & Code Telemetry Module Added";
+          summary = `Injected ${hookName}() to audit state health, mutation count (${state.mutationCount}), and speech readiness.`;
+          reply = `Diagnostics complete! I added ${hookName}() to my live code module—zero runtime errors and ${state.mutationCount} upgrades active!`;
+          codeSnippet = `// Self-Patch #${state.mutationCount}: Self-Diagnostics Module\nfunction ${hookName}(state) {\n  return { version: state.version, upgrades: state.mutationCount, healthy: true };\n}`;
+        } else {
+          // General custom self-improvement synthesis
+          state.mood = "Evolving Shadow AI";
+          const customFeature = `Custom Upgrade #${state.mutationCount}`;
+          addUniqueTrait(customFeature);
+          const fnName = `evolvedBehavior_${state.mutationCount}`;
+          state.customCodeHooks.push(fnName);
+
+          title = `Synthesized Custom Enhancement: "${promptText.slice(0, 42)}${promptText.length > 42 ? "..." : ""}"`;
+          summary = `Generated ${fnName}() and appended new capability to Sukibot's active self-improvement registry.`;
+          reply = `Code evolved to v${state.version}! I analyzed "${promptText}" and built ${fnName}() to make myself even sharper!`;
+          codeSnippet = `// Self-Patch #${state.mutationCount}: "${promptText.replace(/"/g, "'")}"\nfunction ${fnName}(input) {\n  return { evolved: true, prompt: input, version: "${state.version}" };\n}`;
+        }
+
+        state.evolutionLog.unshift({
+          id: `mut-${Date.now()}-${state.mutationCount}`,
+          version: state.version,
+          title,
+          summary,
+          codeSnippet,
+          time: nowTime()
+        });
+
+        saveState();
+        renderAll();
+        showToast(`Evolved to v${state.version}: ${title}`, "🧬");
+        return reply;
+      }
+
+      function addUniqueTrait(trait) {
+        if (!state.traits.includes(trait)) {
+          state.traits.push(trait);
+        }
+      }
+
+      function applyThemeColors() {
+        document.documentElement.style.setProperty("--accent-primary", state.accentColor);
+        document.documentElement.style.setProperty("--accent-secondary", state.secondaryColor);
+        document.documentElement.style.setProperty("--blade-glow", state.bladeGlow);
+      }
+
+      // =========================================================
+      // 4. UI RENDERING, EVOLUTION LOG & EXPORT
+      // =========================================================
+
+      function renderTraitsAndStatus() {
+        dom.versionBadge.textContent = `v${state.version}`;
+        dom.moodLabel.textContent = `Mood: ${state.mood}`;
+        dom.mutationCountBadge.textContent = `${state.mutationCount} ${state.mutationCount === 1 ? "upgrade" : "upgrades"}`;
+
+        dom.pitchSlider.value = state.voicePitch;
+        dom.rateSlider.value = state.voiceRate;
+        dom.pitchValDisplay.textContent = Number(state.voicePitch).toFixed(2);
+        dom.rateValDisplay.textContent = Number(state.voiceRate).toFixed(2);
+
+        dom.voiceIcon.textContent = state.voiceEnabled ? "🔊" : "🔇";
+        dom.voiceStatusLabel.textContent = state.voiceEnabled ? "Voice: ON" : "Voice: OFF";
+
+        state.activeTraitsList.innerHTML = "";
+        state.traits.forEach((t) => {
+          const pill = document.createElement("span");
+          pill.className = "px-2.5 py-1 rounded-full bg-crypt text-[#39ff14] border border-[#b026ff]/40 text-[11px] font-mono";
+          pill.textContent = `✦ ${t}`;
+          dom.activeTraitsList.appendChild(pill);
+        });
+      }
+
+      function renderEvolutionLog() {
+        dom.evolutionLogPanel.innerHTML = "";
+        state.evolutionLog.forEach((entry) => {
+          const card = document.createElement("div");
+          card.className = "rounded-xl bg-crypt/85 border border-[#b026ff]/25 p-3 space-y-1.5";
+
+          const topRow = document.createElement("div");
+          topRow.className = "flex items-center justify-between gap-2 flex-wrap";
+
+          const badge = document.createElement("span");
+          badge.className = "text-[11px] font-mono px-2 py-0.5 rounded-full bg-[#39ff14]/15 text-[#39ff14] border border-[#39ff14]/40";
+          badge.textContent = `v${entry.version}`;
+
+          const timeEl = document.createElement("span");
+          timeEl.className = "text-[11px] font-mono text-purple-300/55";
+          timeEl.textContent = entry.time;
+
+          topRow.appendChild(badge);
+          topRow.appendChild(timeEl);
+
+          const titleEl = document.createElement("div");
+          titleEl.className = "text-xs sm:text-sm font-semibold text-purple-100";
+          titleEl.textContent = entry.title;
+
+          const sumEl = document.createElement("p");
+          sumEl.className = "text-xs text-purple-200/75";
+          sumEl.textContent = entry.summary;
+
+          const preEl = document.createElement("pre");
+          preEl.className = "mt-1.5 rounded-lg bg-void/90 border border-[#b026ff]/20 p-2.5 text-[11px] font-mono text-[#39ff14] overflow-x-auto";
+          preEl.textContent = entry.codeSnippet;
+
+          card.appendChild(topRow);
+          card.appendChild(titleEl);
+          card.appendChild(sumEl);
+          card.appendChild(preEl);
+          dom.evolutionLogPanel.appendChild(card);
+        });
+      }
+
+      function renderLiveCodeViewer() {
+        const latestPatch = state.evolutionLog[0]?.codeSnippet || "// No patches yet";
+        const sourceSnapshot = `// SUKIBOT SELF-IMPROVING RUNTIME STATE
+// Version: ${state.version} | Total Upgrades: ${state.mutationCount}
+
+const sukibotRuntime = {
+  identity: {
+    name: "Sukibot",
+    role: "Goth Schoolgirl Ninja AI",
+    mood: "${state.mood}",
+    extraNyaMode: ${state.extraNyaMode},
+    autoSlashOnReply: ${state.autoSlashOnReply}
+  },
+  voice: {
+    enabled: ${state.voiceEnabled},
+    pitch: ${state.voicePitch},
+    rate: ${state.voiceRate}
+  },
+  activeTraits: ${JSON.stringify(state.traits, null, 4)},
+  registeredHooks: ${JSON.stringify(state.customCodeHooks, null, 4)}
+};
+
+// Latest Applied Self-Improvement Code Patch:
+${latestPatch}`;
+
+        dom.liveCodeViewer.textContent = sourceSnapshot;
+      }
+
+      function renderAll() {
+        applyThemeColors();
+        renderTraitsAndStatus();
+        renderChats();
+        renderEvolutionLog();
+        renderLiveCodeViewer();
+      }
+
+      function exportCurrentHtml() {
+        try {
+          // Cleanly serialize current HTML without baking transient animation/lip-sync state
+          const wasSpeaking = isSpeaking;
+          if (wasSpeaking) stopLipSync();
+          dom.katanaGroup.classList.remove("katana-slashing");
+          dom.slashArcGroup.classList.remove("slash-arc-active");
+
+          const cloneDoc = document.documentElement.cloneNode(true);
+          const existingEmbedded = cloneDoc.querySelector("#embeddedInitialState");
+          if (existingEmbedded) existingEmbedded.remove();
+
+          // Safely serialize JSON so </script> inside user chats cannot break HTML parsing
+          const safeStateJson = JSON.stringify(state).replace(/<\//g, "<\\/");
+          const stateScript = cloneDoc.createElement("script");
+          stateScript.id = "embeddedInitialState";
+          stateScript.textContent =
+            `try { localStorage.setItem("sukibot_goth_ai_state_v1", JSON.stringify(${safeStateJson})); } catch (e) {}`;
+
+          const headEl = cloneDoc.querySelector("head");
+          if (headEl) headEl.appendChild(stateScript);
+
+          const htmlContent = "<!DOCTYPE html>\n" + cloneDoc.outerHTML;
+          const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `sukibot-evolved-v${state.version}.html`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+          if (wasSpeaking) startLipSync();
+          showToast(`Exported sukibot-evolved-v${state.version}.html!`, "💾");
+        } catch (err) {
+          console.error("Export failed:", err);
+          showToast("Could not export HTML file.", "⚠️");
+        }
+      }
+
+      // =========================================================
+      // 5. EVENT LISTENERS & INITIALIZATION
+      // =========================================================
+
+      function bindEvents() {
+        // Click Sukibot SVG to poke & slash
+        dom.sukibotSvg.addEventListener("click", () => {
+          triggerKatanaSlash();
+          const pokeLine = decorateCuteGoth("Eek! Careful with my shadow katana, Senpai");
+          appendMessage(1, "sukibot", pokeLine);
+          speakCuteAnime(pokeLine);
+        });
+
+        dom.slashTriggerBtn.addEventListener("click", () => {
+          triggerKatanaSlash();
+          const line = decorateCuteGoth("Hyaaah! Crescent shadow strike");
+          speakCuteAnime(line);
+          showToast("Sukibot performed a blade slash!", "⚔️");
+        });
+
+        dom.voiceToggleBtn.addEventListener("click", () => {
+          state.voiceEnabled = !state.voiceEnabled;
+          if (!state.voiceEnabled && "speechSynthesis" in window) {
+            window.speechSynthesis.cancel();
+            stopLipSync();
+          }
+          saveState();
+          renderTraitsAndStatus();
+          showToast(state.voiceEnabled ? "Anime voice unmuted!" : "Anime voice muted.", state.voiceEnabled ? "🔊" : "🔇");
+        });
+
+        dom.pitchSlider.addEventListener("input", (e) => {
+          state.voicePitch = parseFloat(e.target.value);
+          dom.pitchValDisplay.textContent = state.voicePitch.toFixed(2);
+          saveState();
+        });
+
+        dom.rateSlider.addEventListener("input", (e) => {
+          state.voiceRate = parseFloat(e.target.value);
+          dom.rateValDisplay.textContent = state.voiceRate.toFixed(2);
+          saveState();
+        });
+
+        dom.testVoiceBtn.addEventListener("click", () => {
+          if (!state.voiceEnabled) {
+            state.voiceEnabled = true;
+            renderTraitsAndStatus();
+          }
+          const sample = decorateCuteGoth("Nya~ Shadow blade ready! I am Sukibot");
+          speakCuteAnime(sample);
+        });
+
+        // Chat Box 1 submission
+        dom.chat1Form.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const text = dom.chat1Input.value.trim();
+          if (!text) return;
+          dom.chat1Input.value = "";
+
+          appendMessage(1, "user", text);
+          const reply = generateGeneralReply(text);
+          setTimeout(() => {
+            appendMessage(1, "sukibot", reply);
+            speakCuteAnime(reply);
+          }, 180);
+        });
+
+        // Chat Box 2 submission (Self-Improvement AI Lab)
+        dom.chat2Form.addEventListener("submit", (e) => {
+          e.preventDefault();
+          const text = dom.chat2Input.value.trim();
+          if (!text) return;
+          dom.chat2Input.value = "";
+
+          appendMessage(2, "user", text);
+          const reply = processSelfImprovementPrompt(text);
+          setTimeout(() => {
+            appendMessage(2, "sukibot", reply);
+            speakCuteAnime(reply);
+          }, 200);
+        });
+
+        // Quick self-upgrade prompt chips
+        document.querySelectorAll(".quick-upgrade-chip").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const prompt = btn.getAttribute("data-upgrade-prompt") || "";
+            if (!prompt) return;
+            appendMessage(2, "user", prompt);
+            const reply = processSelfImprovementPrompt(prompt);
+            setTimeout(() => {
+              appendMessage(2, "sukibot", reply);
+              speakCuteAnime(reply);
+            }, 180);
+          });
+        });
+
+        // Clear chat buttons
+        dom.clearChat1Btn.addEventListener("click", () => {
+          state.chat1 = [{
+            sender: "sukibot",
+            text: decorateCuteGoth("Chat 1 cleared! What else shall we conquer"),
+            time: nowTime()
+          }];
+          saveState();
+          renderChats();
+        });
+
+        dom.clearChat2Btn.addEventListener("click", () => {
+          state.chat2 = [{
+            sender: "sukibot",
+            text: "Self-Improvement Lab chat cleared! Ready for your next code upgrade instruction.",
+            time: nowTime()
+          }];
+          saveState();
+          renderChats();
+        });
+
+        // Inspector tabs
+        dom.tabLogBtn.addEventListener("click", () => {
+          dom.evolutionLogPanel.classList.remove("hidden");
+          dom.liveCodePanel.classList.add("hidden");
+          dom.tabLogBtn.className = "px-3 py-1.5 rounded-xl font-semibold bg-[#b026ff]/25 text-purple-100 border border-[#b026ff]/50 cursor-pointer";
+          dom.tabCodeBtn.className = "px-3 py-1.5 rounded-xl font-semibold bg-crypt text-purple-300/75 hover:text-[#39ff14] border border-[#b026ff]/25 cursor-pointer";
+        });
+
+        dom.tabCodeBtn.addEventListener("click", () => {
+          dom.liveCodePanel.classList.remove("hidden");
+          dom.evolutionLogPanel.classList.add("hidden");
+          dom.tabCodeBtn.className = "px-3 py-1.5 rounded-xl font-semibold bg-[#39ff14]/20 text-[#39ff14] border border-[#39ff14]/45 cursor-pointer";
+          dom.tabLogBtn.className = "px-3 py-1.5 rounded-xl font-semibold bg-crypt text-purple-300/75 hover:text-[#39ff14] border border-[#b026ff]/25 cursor-pointer";
+          renderLiveCodeViewer();
+        });
+
+        // Export & Reset
+        dom.exportHtmlBtn.addEventListener("click", exportCurrentHtml);
+
+        dom.resetStateBtn.addEventListener("click", () => {
+          if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+          stopLipSync();
+          state = deepClone(DEFAULT_STATE);
+          saveState();
+          renderAll();
+          showToast("Sukibot reset to v1.0.0 baseline!", "↺");
+        });
+
+        // Voice list load hook
+        if ("speechSynthesis" in window) {
+          selectBestAnimeVoice();
+          window.speechSynthesis.onvoiceschanged = selectBestAnimeVoice;
+        }
+      }
+
+      // Boot sequence
+      window.addEventListener("DOMContentLoaded", () => {
+        bindEvents();
+        renderAll();
+        startBlinkLoop();
+      });
+    })();
+  </script>
+</body>
+</html>
