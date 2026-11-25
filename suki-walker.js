@@ -5,13 +5,13 @@ const { Pca9685Driver } = require("pca9685");
 // 1. SERVO PIN & CALIBRATION CONFIGURATION
 // ==========================================
 const CHANNELS = {
-  FL_HIP: 0,  // Front Left Hip
+  FL_HIP: 0, // Front Left Hip
   FL_KNEE: 1, // Front Left Knee
-  FR_HIP: 2,  // Front Right Hip
+  FR_HIP: 2, // Front Right Hip
   FR_KNEE: 3, // Front Right Knee
-  BL_HIP: 4,  // Back Left Hip
+  BL_HIP: 4, // Back Left Hip
   BL_KNEE: 5, // Back Left Knee
-  BR_HIP: 6,  // Back Right Hip
+  BR_HIP: 6, // Back Right Hip
   BR_KNEE: 7, // Back Right Knee
 };
 
@@ -32,28 +32,39 @@ const DIR = {
   BR_HIP: -1, BR_KNEE: 1,
 };
 
+// Baseline knee bend (degrees) for stance/standing stability (adjust to your linkage)
+const STAND_KNEE_BEND = 15;
+
 // Gait tuning parameters
 const GAIT = {
-  STEP_LENGTH: 24,   // Total hip sweep in degrees
-  STEP_HEIGHT: 18,   // Knee lift height in degrees
-  PHASE_DELAY_MS: 90 // Time between gait phases (lower = faster walk)
+  STEP_LENGTH: 24,     // Total hip sweep in degrees
+  STEP_HEIGHT: 18,     // Additional knee lift above stance bend
+  PHASE_DELAY_MS: 110, // Time between gait phases (increase if servos lag)
 };
 
-// Standard servo pulse range in microseconds (adjust if your servos use 600-2400)
-const SERVO_MIN_US = 500;
-const SERVO_MAX_US = 2500;
+// Standard servo pulse range in microseconds (verify against your specific servo model)
+const SERVO_MIN_US = 550;
+const SERVO_MAX_US = 2450;
 
 // ==========================================
 // 2. HARDWARE DRIVER LAYER (PCA9685)
 // ==========================================
 let pwm = null;
+let bus = null;
+let isShuttingDown = false;
 
 function initPwm() {
   return new Promise((resolve, reject) => {
+    try {
+      bus = i2cBus.openSync(1); // /dev/i2c-1 on Raspberry Pi
+    } catch (err) {
+      return reject(err);
+    }
+
     const options = {
-      i2c: i2cBus.openSync(1), // /dev/i2c-1 on Raspberry Pi
+      i2c: bus,
       address: 0x40,
-      frequency: 50,           // 50Hz standard analog/digital servo frequency
+      frequency: 50, // 50Hz standard servo frequency
       debug: false,
     };
 
@@ -65,15 +76,32 @@ function initPwm() {
 }
 
 function angleToPulseUs(angle) {
+  if (!Number.isFinite(angle)) {
+    throw new Error(`Invalid servo target angle: ${angle}`);
+  }
   const clamped = Math.max(0, Math.min(180, angle));
-  return Math.round(SERVO_MIN_US + (clamped / 180) * (SERVO_MAX_US - SERVO_MIN_US));
+  return Math.round(
+    SERVO_MIN_US + (clamped / 180) * (SERVO_MAX_US - SERVO_MIN_US)
+  );
 }
 
 function setJoint(jointName, deltaDegrees) {
+  if (!pwm) {
+    throw new Error("PWM driver is not initialized.");
+  }
+  if (!(jointName in CHANNELS)) {
+    throw new Error(`Unknown joint name: "${jointName}"`);
+  }
+
   const channel = CHANNELS[jointName];
   const targetAngle = NEUTRAL[jointName] + deltaDegrees * DIR[jointName];
   const pulseUs = angleToPulseUs(targetAngle);
-  pwm.setPulseLength(channel, pulseUs);
+
+  pwm.setPulseLength(channel, pulseUs, (err) => {
+    if (err) {
+      console.error(`Failed to set ${jointName} (ch ${channel}):`, err);
+    }
+  });
 }
 
 function applyPose(pose) {
@@ -90,10 +118,10 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function standUp() {
   console.log("Standing up...");
   applyPose({
-    FL_HIP: 0, FL_KNEE: 0,
-    FR_HIP: 0, FR_KNEE: 0,
-    BL_HIP: 0, BL_KNEE: 0,
-    BR_HIP: 0, BR_KNEE: 0,
+    FL_HIP: 0, FL_KNEE: STAND_KNEE_BEND,
+    FR_HIP: 0, FR_KNEE: STAND_KNEE_BEND,
+    BL_HIP: 0, BL_KNEE: STAND_KNEE_BEND,
+    BR_HIP: 0, BR_KNEE: STAND_KNEE_BEND,
   });
   await sleep(600);
 }
@@ -115,42 +143,43 @@ async function sitDown() {
  */
 async function trot(steps = 4, direction = 1) {
   const halfSwing = (GAIT.STEP_LENGTH / 2) * direction;
-  const lift = GAIT.STEP_HEIGHT;
+  const stanceKnee = STAND_KNEE_BEND;
+  const liftKnee = STAND_KNEE_BEND + GAIT.STEP_HEIGHT;
 
   for (let i = 0; i < steps; i++) {
     // Phase 1: Lift FL + BR and swing forward; push planted FR + BL backward
     applyPose({
-      FL_HIP: halfSwing,  FL_KNEE: lift,
-      BR_HIP: halfSwing,  BR_KNEE: lift,
-      FR_HIP: -halfSwing, FR_KNEE: 0,
-      BL_HIP: -halfSwing, BL_KNEE: 0,
+      FL_HIP: halfSwing,  FL_KNEE: liftKnee,
+      BR_HIP: halfSwing,  BR_KNEE: liftKnee,
+      FR_HIP: -halfSwing, FR_KNEE: stanceKnee,
+      BL_HIP: -halfSwing, BL_KNEE: stanceKnee,
     });
     await sleep(GAIT.PHASE_DELAY_MS);
 
     // Phase 2: Plant FL + BR
     applyPose({
-      FL_HIP: halfSwing,  FL_KNEE: 0,
-      BR_HIP: halfSwing,  BR_KNEE: 0,
-      FR_HIP: -halfSwing, FR_KNEE: 0,
-      BL_HIP: -halfSwing, BL_KNEE: 0,
+      FL_HIP: halfSwing,  FL_KNEE: stanceKnee,
+      BR_HIP: halfSwing,  BR_KNEE: stanceKnee,
+      FR_HIP: -halfSwing, FR_KNEE: stanceKnee,
+      BL_HIP: -halfSwing, BL_KNEE: stanceKnee,
     });
     await sleep(GAIT.PHASE_DELAY_MS);
 
     // Phase 3: Lift FR + BL and swing forward; push planted FL + BR backward
     applyPose({
-      FR_HIP: halfSwing,  FR_KNEE: lift,
-      BL_HIP: halfSwing,  BL_KNEE: lift,
-      FL_HIP: -halfSwing, FL_KNEE: 0,
-      BR_HIP: -halfSwing, BR_KNEE: 0,
+      FR_HIP: halfSwing,  FR_KNEE: liftKnee,
+      BL_HIP: halfSwing,  BL_KNEE: liftKnee,
+      FL_HIP: -halfSwing, FL_KNEE: stanceKnee,
+      BR_HIP: -halfSwing, BR_KNEE: stanceKnee,
     });
     await sleep(GAIT.PHASE_DELAY_MS);
 
     // Phase 4: Plant FR + BL
     applyPose({
-      FR_HIP: halfSwing,  FR_KNEE: 0,
-      BL_HIP: halfSwing,  BL_KNEE: 0,
-      FL_HIP: -halfSwing, FL_KNEE: 0,
-      BR_HIP: -halfSwing, BR_KNEE: 0,
+      FR_HIP: halfSwing,  FR_KNEE: stanceKnee,
+      BL_HIP: halfSwing,  BL_KNEE: stanceKnee,
+      FL_HIP: -halfSwing, FL_KNEE: stanceKnee,
+      BR_HIP: -halfSwing, BR_KNEE: stanceKnee,
     });
     await sleep(GAIT.PHASE_DELAY_MS);
   }
@@ -170,46 +199,47 @@ async function walkBackward(steps = 4) {
 
 /**
  * Pivots in place by driving left and right sides in opposite directions.
- * turnDir: 1 for right turn, -1 for left turn
+ * turnDir: 1 for right turn (CW from above), -1 for left turn (CCW from above)
  */
 async function turn(steps = 4, turnDir = 1) {
   const halfSwing = (GAIT.STEP_LENGTH / 2) * turnDir;
-  const lift = GAIT.STEP_HEIGHT;
+  const stanceKnee = STAND_KNEE_BEND;
+  const liftKnee = STAND_KNEE_BEND + GAIT.STEP_HEIGHT;
 
   for (let i = 0; i < steps; i++) {
-    // Lift FL + BR
+    // Phase 1: Lift FL + BR; left swings forward (+halfSwing), right swings backward (-halfSwing)
     applyPose({
-      FL_HIP: halfSwing,  FL_KNEE: lift,
-      BR_HIP: -halfSwing, BR_KNEE: lift,
-      FR_HIP: halfSwing,  FR_KNEE: 0,
-      BL_HIP: -halfSwing, BL_KNEE: 0,
+      FL_HIP: halfSwing,  FL_KNEE: liftKnee,
+      BR_HIP: -halfSwing, BR_KNEE: liftKnee,
+      FR_HIP: -halfSwing, FR_KNEE: stanceKnee,
+      BL_HIP: halfSwing,  BL_KNEE: stanceKnee,
     });
     await sleep(GAIT.PHASE_DELAY_MS);
 
-    // Plant FL + BR
+    // Phase 2: Plant FL + BR
     applyPose({
-      FL_HIP: halfSwing,  FL_KNEE: 0,
-      BR_HIP: -halfSwing, BR_KNEE: 0,
-      FR_HIP: halfSwing,  FR_KNEE: 0,
-      BL_HIP: -halfSwing, BL_KNEE: 0,
+      FL_HIP: halfSwing,  FL_KNEE: stanceKnee,
+      BR_HIP: -halfSwing, BR_KNEE: stanceKnee,
+      FR_HIP: -halfSwing, FR_KNEE: stanceKnee,
+      BL_HIP: halfSwing,  BL_KNEE: stanceKnee,
     });
     await sleep(GAIT.PHASE_DELAY_MS);
 
-    // Lift FR + BL
+    // Phase 3: Lift FR + BL; right swings forward (-halfSwing), left swings backward (+halfSwing)
     applyPose({
-      FR_HIP: -halfSwing, FR_KNEE: lift,
-      BL_HIP: halfSwing,  BL_KNEE: lift,
-      FL_HIP: -halfSwing, FL_KNEE: 0,
-      BR_HIP: halfSwing,  BR_KNEE: 0,
+      FR_HIP: -halfSwing, FR_KNEE: liftKnee,
+      BL_HIP: halfSwing,  BL_KNEE: liftKnee,
+      FL_HIP: -halfSwing, FL_KNEE: stanceKnee,
+      BR_HIP: halfSwing,  BR_KNEE: stanceKnee,
     });
     await sleep(GAIT.PHASE_DELAY_MS);
 
-    // Plant FR + BL
+    // Phase 4: Plant FR + BL
     applyPose({
-      FR_HIP: -halfSwing, FR_KNEE: 0,
-      BL_HIP: halfSwing,  BL_KNEE: 0,
-      FL_HIP: -halfSwing, FL_KNEE: 0,
-      BR_HIP: halfSwing,  BR_KNEE: 0,
+      FR_HIP: -halfSwing, FR_KNEE: stanceKnee,
+      BL_HIP: halfSwing,  BL_KNEE: stanceKnee,
+      FL_HIP: -halfSwing, FL_KNEE: stanceKnee,
+      BR_HIP: halfSwing,  BR_KNEE: stanceKnee,
     });
     await sleep(GAIT.PHASE_DELAY_MS);
   }
@@ -219,17 +249,47 @@ async function turn(steps = 4, turnDir = 1) {
 // ==========================================
 // 4. MAIN EXECUTION & SAFE SHUTDOWN
 // ==========================================
-function releaseServos() {
+function turnOffChannelAsync(ch) {
+  return new Promise((resolve) => {
+    pwm.channelOff(ch, (err) => {
+      if (err) {
+        console.error(`Error turning off channel ${ch}:`, err);
+      }
+      resolve();
+    });
+  });
+}
+
+async function releaseServos() {
   if (!pwm) return;
-  for (const ch of Object.values(CHANNELS)) {
-    pwm.channelOff(ch);
+  const channels = Object.values(CHANNELS);
+  await Promise.all(channels.map((ch) => turnOffChannelAsync(ch)));
+
+  if (bus) {
+    await new Promise((resolve) => bus.close(() => resolve()));
+    bus = null;
   }
+  pwm = null;
+}
+
+async function handleSignal(signalName) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`\nReceived ${signalName}. Stopping and relaxing servos...`);
+  await releaseServos();
+  process.exit(0);
 }
 
 process.on("SIGINT", () => {
-  console.log("\nStopping and relaxing servos...");
-  releaseServos();
-  process.exit(0);
+  void handleSignal("SIGINT");
+});
+
+process.on("SIGTERM", () => {
+  void handleSignal("SIGTERM");
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection:", reason);
 });
 
 async function main() {
@@ -249,11 +309,12 @@ async function main() {
     await sleep(500);
 
     await sitDown();
-    releaseServos();
+    await releaseServos();
     console.log("Done.");
   } catch (err) {
     console.error("Error running Sukibot script:", err);
-    releaseServos();
+    await releaseServos();
+    process.exitCode = 1;
   }
 }
 
