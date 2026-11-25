@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+l<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -117,6 +117,7 @@
       background: var(--hud-panel);
       border: 1px solid var(--hud-primary-dim);
       backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.5), inset 0 0 12px var(--hud-primary-dim);
       opacity: var(--hud-opacity);
       transition: all 0.4s ease;
@@ -145,6 +146,51 @@
       bottom: -1px;
       right: -1px;
       border-width: 0 2px 2px 0;
+    }
+
+    /* Chat Box & Custom Scrollbar */
+    .chat-selectable,
+    .chat-selectable * {
+      user-select: text;
+    }
+
+    #chat-log::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #chat-log::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.25);
+    }
+
+    #chat-log::-webkit-scrollbar-thumb {
+      background: var(--hud-primary-dim);
+      border-radius: 2px;
+    }
+
+    #chat-log::-webkit-scrollbar-thumb:hover {
+      background: var(--hud-primary);
+    }
+
+    .chat-msg-user {
+      background: var(--hud-primary-dim);
+      border: 1px solid var(--hud-primary);
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.35);
+    }
+
+    .chat-msg-suki {
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid var(--hud-primary-dim);
+    }
+
+    #chat-input::placeholder {
+      color: var(--hud-primary);
+      opacity: 0.45;
+    }
+
+    #chat-input:focus {
+      outline: none;
+      border-color: var(--hud-primary);
+      box-shadow: 0 0 12px var(--hud-primary-dim);
     }
 
     /* Holographic Reticle Animations */
@@ -238,10 +284,10 @@
   <!-- ========================================================================
        TOP TELEMETRY BAR (LEFT & RIGHT CLUSTERS)
        ======================================================================== -->
-  <header class="relative z-20 flex flex-col sm:flex-row justify-between items-stretch sm:items-start gap-3">
+  <header class="relative z-20 flex flex-col sm:flex-row justify-between items-stretch sm:items-start gap-2.5 sm:gap-3">
 
     <!-- TOP-LEFT TELEMETRY CLUSTER: STATUS, ASSET, MODE -->
-    <div class="hud-panel rounded-md px-3.5 py-2.5 sm:px-4 sm:py-3 flex flex-wrap sm:flex-nowrap items-center gap-4 sm:gap-5">
+    <div class="hud-panel rounded-md px-3.5 py-2 sm:px-4 sm:py-2.5 flex flex-wrap sm:flex-nowrap items-center gap-4 sm:gap-5">
       <!-- Status -->
       <div class="flex flex-col">
         <span class="text-[10px] tracking-[0.2em] opacity-60 uppercase">SYS.STATUS</span>
@@ -271,7 +317,7 @@
     </div>
 
     <!-- TOP-RIGHT TELEMETRY CLUSTER: GPU, FPS, NEURAL SYNC -->
-    <div class="hud-panel rounded-md px-3.5 py-2.5 sm:px-4 sm:py-3 flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end gap-4 sm:gap-5">
+    <div class="hud-panel rounded-md px-3.5 py-2 sm:px-4 sm:py-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end gap-4 sm:gap-5">
       <!-- GPU Hardware Readout -->
       <div class="flex flex-col">
         <span class="text-[10px] tracking-[0.2em] opacity-60 uppercase">RENDER.GPU</span>
@@ -314,7 +360,7 @@
        ======================================================================== -->
   <main
     id="hud-stage"
-    class="relative z-10 flex-1 flex flex-col items-center justify-center cursor-pointer overflow-hidden my-2"
+    class="relative z-10 flex-1 flex flex-col items-center justify-center cursor-pointer overflow-hidden my-1.5 min-h-0"
     title="Tap stage or avatar to cycle HUD mode"
   >
     <!-- Reactive Ambient Particle / Waveform Canvas -->
@@ -340,7 +386,7 @@
     <!-- Interactive Holographic Avatar Core -->
     <div
       id="hud-avatar"
-      class="relative flex items-center justify-center w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 combat-reticle-lock group"
+      class="relative flex items-center justify-center w-52 h-52 sm:w-64 sm:h-64 md:w-80 md:h-80 combat-reticle-lock group -translate-y-8 sm:-translate-y-10 transition-transform"
     >
       <!-- Dynamic Tap Burst Container -->
       <div id="tap-burst-layer" class="absolute inset-0 pointer-events-none flex items-center justify-center"></div>
@@ -447,12 +493,81 @@
         </text>
       </svg>
     </div>
+
+    <!-- ======================================================================
+         TACTICAL COMMS OVERLAY (COLLAPSIBLE CHAT BOXES + INPUT)
+         ====================================================================== -->
+    <section
+      id="comms-panel"
+      aria-label="Suki Tactical Comms"
+      class="hud-panel rounded-md w-full max-w-2xl mt-auto mb-1 z-20 cursor-default flex flex-col overflow-hidden"
+    >
+      <!-- Comms Header Bar -->
+      <div class="flex items-center justify-between px-3 py-1.5 border-b border-[var(--hud-primary-dim)] bg-black/30">
+        <div class="flex items-center gap-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-[var(--hud-primary)]"></span>
+          <span class="text-[10px] font-display font-bold tracking-[0.22em] uppercase">
+            COMMS.CHANNEL // ENCRYPTED
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            id="clear-chat-btn"
+            class="text-[10px] tracking-wider uppercase opacity-65 hover:opacity-100 px-1.5 py-0.5 border border-transparent hover:border-[var(--hud-primary-dim)] rounded cursor-pointer"
+            title="Purge Comms Log"
+          >
+            CLR
+          </button>
+          <button
+            type="button"
+            id="toggle-chat-btn"
+            class="text-[10px] tracking-wider uppercase opacity-80 hover:opacity-100 px-2 py-0.5 border border-[var(--hud-primary-dim)] rounded cursor-pointer"
+            aria-expanded="true"
+          >
+            MINIMIZE
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable Message Feed -->
+      <div
+        id="chat-log"
+        class="chat-selectable px-3 py-2.5 h-32 sm:h-36 overflow-y-auto flex flex-col gap-2 text-xs leading-relaxed"
+      >
+        <div class="chat-msg-suki rounded px-2.5 py-1.5 max-w-[88%] self-start">
+          <div class="flex items-center justify-between gap-3 text-[9px] tracking-[0.18em] opacity-60 mb-0.5">
+            <span>SUKI // UNIT-01</span>
+            <span>ONLINE</span>
+          </div>
+          <p class="m-0">Tactical neural link established. Awaiting operator input.</p>
+        </div>
+      </div>
+
+      <!-- Message Input Form -->
+      <form id="chat-form" class="flex items-center gap-2 p-2 border-t border-[var(--hud-primary-dim)] bg-black/40">
+        <span class="text-xs font-bold opacity-70 pl-1">&gt;</span>
+        <input
+          id="chat-input"
+          type="text"
+          autocomplete="off"
+          placeholder="Transmit directive to SUKI..."
+          class="chat-selectable flex-1 bg-black/50 border border-[var(--hud-primary-dim)] rounded px-2.5 py-1.5 text-xs text-[var(--hud-primary)] transition-all"
+        />
+        <button
+          type="submit"
+          class="mode-btn px-3 py-1.5 rounded text-[11px] font-bold tracking-[0.15em] uppercase cursor-pointer shrink-0"
+        >
+          SEND
+        </button>
+      </form>
+    </section>
   </main>
 
   <!-- ========================================================================
        BOTTOM INTERACTION HINT & QUICK-SELECT CONTROLS
        ======================================================================== -->
-  <footer class="relative z-20 flex flex-col items-center gap-2.5">
+  <footer class="relative z-20 flex flex-col items-center gap-2">
     <!-- Subtle Prompt Hint -->
     <div class="text-[10px] sm:text-xs tracking-[0.24em] uppercase opacity-75 text-center animate-pulse">
       [ TAP AVATAR OR STAGE TO CYCLE MODE ]
@@ -491,7 +606,7 @@
 
   <script>
     /* ==========================================================================
-       1. EXACT USER-PROVIDED HUD_MODES & SukiHudController CLASS
+       1. HUD_MODES & SukiHudController CLASS
        ========================================================================== */
     const HUD_MODES = ['IDLE', 'ACTIVE', 'STEALTH', 'COMBAT'];
 
@@ -569,7 +684,6 @@
 
       updateNeuralSync() {
         if (!this.el.neuralSync) return;
-        // Example: tie sync percentage to asset + engine readiness instead of a static 100%
         const sync = this.assetReady ? 100 : 45;
         this.el.neuralSync.textContent = `${sync}%`;
       }
@@ -596,7 +710,7 @@
     }
 
     /* ==========================================================================
-       2. UI WIRING, REACTIVE PARTICLE/WAVEFORM CANVAS & INTERACTIVE CONTROLS
+       2. UI WIRING, TACTICAL COMMS CHAT & INTERACTIVE CONTROLS
        ========================================================================== */
     document.addEventListener('DOMContentLoaded', () => {
       const elements = {
@@ -615,186 +729,5 @@
       const reloadAssetBtn = document.getElementById('reload-asset-btn');
       const tapBurstLayer = document.getElementById('tap-burst-layer');
 
-      // Instantiate SukiHudController
-      const hud = new SukiHudController(elements);
-
-      // Keep UI progress bar & active mode buttons synchronized with controller state
-      const syncUiVisuals = () => {
-        // Sync Neural Sync progress bar width
-        const pct = hud.assetReady ? 100 : 45;
-        if (neuralSyncBar) {
-          neuralSyncBar.style.width = `${pct}%`;
-        }
-        // Highlight active mode button
-        modeButtons.forEach((btn) => {
-          const btnIdx = Number(btn.dataset.modeIndex);
-          btn.classList.toggle('active-mode', btnIdx === hud.modeIndex);
-        });
-      };
-
-      // Observe text changes on neuralSync & mode to keep auxiliary UI elements in sync
-      const observer = new MutationObserver(syncUiVisuals);
-      observer.observe(elements.neuralSync, { childList: true, characterData: true, subtree: true });
-      observer.observe(elements.mode, { childList: true, characterData: true, subtree: true });
-
-      // Simulated async asset loader (resolves after 1.6s)
-      const simulateLoadAsset = () => new Promise((resolve) => {
-        setTimeout(() => resolve(true), 1600);
-      });
-
-      // Initialize HUD controller (binds avatar tap automatically)
-      hud.init({
-        loadAsset: simulateLoadAsset,
-        avatarTarget: elements.avatar
-      }).then(syncUiVisuals);
-
-      // Also allow tapping anywhere on the stage outside the avatar to cycle modes
-      elements.stage.addEventListener('pointerup', (e) => {
-        if (!elements.avatar.contains(e.target)) {
-          hud.cycleMode();
-        }
-        triggerTapBurst();
-        syncUiVisuals();
-      }, { passive: true });
-
-      // Quick-select mode buttons
-      modeButtons.forEach((btn) => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const idx = Number(btn.dataset.modeIndex);
-          hud.setMode(idx);
-          triggerTapBurst();
-          syncUiVisuals();
-        });
-      });
-
-      // Simulate Asset Reload button: resets assetReady -> false (45%) -> LOADING -> ONLINE (100%)
-      let isReloading = false;
-      reloadAssetBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (isReloading) return;
-        isReloading = true;
-        reloadAssetBtn.style.opacity = '0.5';
-
-        hud.assetReady = false;
-        hud.updateNeuralSync();
-        syncUiVisuals();
-        hud.setAssetState('LOADING');
-        hud.setStatus('SYNCING');
-
-        try {
-          await simulateLoadAsset();
-          hud.assetReady = true;
-          hud.setAssetState('ONLINE');
-          hud.setStatus('READY');
-          hud.updateNeuralSync();
-          syncUiVisuals();
-        } catch {
-          hud.setAssetState('FALLBACK');
-          hud.setStatus('DEGRADED');
-        } finally {
-          isReloading = false;
-          reloadAssetBtn.style.opacity = '1';
-        }
-      });
-
-      // Visual pulse ring on mode cycle
-      function triggerTapBurst() {
-        const ring = document.createElement('div');
-        ring.className = 'tap-burst absolute w-56 h-56 sm:w-72 sm:h-72 rounded-full border-2 border-[var(--hud-primary)] pointer-events-none';
-        tapBurstLayer.appendChild(ring);
-        ring.addEventListener('animationend', () => ring.remove());
-      }
-
-      /* ========================================================================
-         3. REACTIVE PARTICLE & AUDIO-STYLE WAVEFORM CANVAS
-         ======================================================================== */
-      const canvas = document.getElementById('stage-canvas');
-      const ctx = canvas.getContext('2d');
-      let width = 0;
-      let height = 0;
-
-      const particles = Array.from({ length: 42 }, () => ({
-        x: Math.random(),
-        y: Math.random(),
-        vx: (Math.random() - 0.5) * 0.0012,
-        vy: (Math.random() - 0.5) * 0.0012,
-        size: Math.random() * 2 + 1
-      }));
-
-      function resizeCanvas() {
-        const rect = canvas.parentElement.getBoundingClientRect();
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        width = rect.width;
-        height = rect.height;
-        canvas.width = width * dpr;
-        canvas.height = height * dpr;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      }
-
-      window.addEventListener('resize', resizeCanvas);
-      resizeCanvas();
-
-      const modeConfigs = {
-        idle: { color: '#00f0ff', speedMult: 0.7, waveAmp: 12, waveFreq: 0.015 },
-        active: { color: '#00ff88', speedMult: 1.8, waveAmp: 24, waveFreq: 0.025 },
-        stealth: { color: '#a855f7', speedMult: 0.35, waveAmp: 6, waveFreq: 0.01 },
-        combat: { color: '#ff2a55', speedMult: 3.4, waveAmp: 38, waveFreq: 0.045 }
-      };
-
-      let phase = 0;
-      function renderCanvas() {
-        const modeKey = document.body.dataset.sukiMode || 'idle';
-        const cfg = modeConfigs[modeKey] || modeConfigs.idle;
-
-        ctx.clearRect(0, 0, width, height);
-
-        // Draw subtle horizontal telemetry waveform behind avatar
-        phase += 0.04 * cfg.speedMult;
-        ctx.save();
-        ctx.strokeStyle = cfg.color;
-        ctx.lineWidth = 1.25;
-        ctx.globalAlpha = modeKey === 'stealth' ? 0.14 : 0.25;
-        ctx.beginPath();
-        const midY = height * 0.5;
-        for (let x = 0; x <= width; x += 6) {
-          const distFromCenter = Math.abs(x - width * 0.5) / (width * 0.5);
-          const envelope = Math.max(0, 1 - distFromCenter * 1.15);
-          const y =
-            midY +
-            Math.sin(x * cfg.waveFreq + phase) * cfg.waveAmp * envelope +
-            Math.cos(x * cfg.waveFreq * 2.1 - phase * 1.4) * (cfg.waveAmp * 0.4) * envelope;
-          if (x === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-        ctx.restore();
-
-        // Update and draw reactive floating telemetry particles
-        ctx.save();
-        ctx.fillStyle = cfg.color;
-        particles.forEach((p) => {
-          p.x += p.vx * cfg.speedMult;
-          p.y += p.vy * cfg.speedMult;
-
-          if (p.x < 0) p.x = 1;
-          if (p.x > 1) p.x = 0;
-          if (p.y < 0) p.y = 1;
-          if (p.y > 1) p.y = 0;
-
-          const px = p.x * width;
-          const py = p.y * height;
-
-          ctx.globalAlpha = modeKey === 'stealth' ? 0.2 : 0.45;
-          ctx.fillRect(px, py, p.size, p.size);
-        });
-        ctx.restore();
-
-        requestAnimationFrame(renderCanvas);
-      }
-
-      requestAnimationFrame(renderCanvas);
-    });
-  </script>
-</body>
-</html>
+      // Comms elements
+      const commsPanel
