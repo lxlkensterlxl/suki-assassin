@@ -166,6 +166,14 @@
             100% { height: 100%; }
         }
 
+        @keyframes spinSlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .arcane-spin {
+            animation: spinSlow 18s linear infinite;
+        }
+
         .glitch-text {
             text-shadow: 2px 0 #00f0ff, -2px 0 #ff2a8d;
         }
@@ -174,14 +182,14 @@
 <body class="min-h-dvh flex items-center justify-center p-0 sm:p-4 bg-slate-950">
 
     <!-- Screen Layout Wrapper -->
-    <div id="app-viewport" class="relative w-full max-w-[440px] sm:max-w-[480px] h-[100dvh] sm:h-[910px] bg-black sm:rounded-[48px] p-0 sm:p-3 shadow-[0_0_70px_rgba(255,42,141,0.3)] border-0 sm:border-4 border-slate-900 flex flex-col overflow-hidden transition-all duration-300">
+    <div id="app-viewport" class="relative w-full max-w-[440px] sm:max-w-[480px] h-[100dvh] sm:h-[920px] bg-black sm:rounded-[48px] p-0 sm:p-3 shadow-[0_0_70px_rgba(255,42,141,0.3)] border-0 sm:border-4 border-slate-900 flex flex-col overflow-hidden transition-all duration-300">
         
         <!-- Dynamic Island / Top Notch -->
-        <div class="hidden sm:flex absolute top-3 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-full z-50 items-center justify-between px-3 border border-slate-800 shadow-md">
+        <div class="hidden sm:flex absolute top-3 left-1/2 -translate-x-1/2 w-36 h-6 bg-black rounded-full z-50 items-center justify-between px-3 border border-slate-800 shadow-md">
             <div class="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center">
                 <div id="notch-dot" class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></div>
             </div>
-            <span class="font-mono text-[9px] text-pink-400 tracking-tighter">SUKI_CORE v2</span>
+            <span class="font-mono text-[9px] text-pink-400 tracking-tighter">SUKI_CORE v2.1</span>
             <div id="notch-speaker" class="w-2 h-1 rounded-full bg-purple-600/80"></div>
         </div>
 
@@ -196,8 +204,8 @@
             <header class="relative z-30 pt-[max(1rem,env(safe-area-inset-top))] sm:pt-8 px-4 pb-2 border-b border-purple-500/30 bg-cyberDark/90 flex justify-between items-center backdrop-blur-md">
                 <div>
                     <div class="flex items-center space-x-2">
-                        <h1 class="font-orbitron font-extrabold text-sm tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-pink-500 to-purple-400 glitch-text">
-                            SUKIBOT // v2.0
+                        <h1 class="font-orbitron font-extrabold text-xs sm:text-sm tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-pink-500 to-purple-400 glitch-text">
+                            SUKI COMMS &amp; DIAGNOSTICS
                         </h1>
                         <span id="engine-badge" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 border border-cyan-500/50 text-cyan-300">DEMO</span>
                     </div>
@@ -206,7 +214,7 @@
                     </p>
                 </div>
                 
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-1.5">
                     <!-- Equalizer (5 bars) -->
                     <div id="equalizer" class="flex items-end space-x-0.5 h-4 w-8 px-1 border border-purple-500/30 rounded bg-cyberCard">
                         <div class="equalizer-bar w-1 bg-cyan-400 rounded-full"></div>
@@ -253,24 +261,50 @@
                 </div>
             </section>
 
-            <!-- Interactive Anime Cyber Avatar Canvas Section -->
-            <div class="relative w-full h-60 sm:h-72 bg-gradient-to-b from-cyberDark via-cyberCard to-cyberPanel border-b border-purple-500/30 flex items-center justify-center overflow-hidden shrink-0">
+            <!-- Interactive Full-Body Anime Cyber Avatar Canvas Section -->
+            <div class="relative w-full h-[330px] sm:h-[370px] bg-[#070412] border-b border-purple-500/40 flex items-center justify-center overflow-hidden shrink-0">
+                <!-- Radial Neon Backdrop Glow -->
+                <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.22)_0%,rgba(6,3,12,0.95)_75%)] pointer-events-none"></div>
+
                 <canvas id="avatar-canvas" class="w-full h-full z-20 cursor-pointer block"></canvas>
                 
-                <!-- Telemetry & Diagnostic HUD Overlay -->
-                <div class="absolute top-2 left-2 z-20 font-mono text-[9px] text-cyan-400/90 pointer-events-none space-y-0.5 bg-black/50 p-1.5 rounded border border-cyan-500/20">
-                    <div>FPS: <span id="fps-counter" class="text-pink-400">60</span></div>
-                    <div>LATENCY: <span id="latency-val" class="text-green-400">12ms</span></div>
-                    <div>NEURAL SYNC: <span id="neural-sync" class="text-cyan-300">100%</span></div>
+                <!-- Left HUD Overlay: OCCULT SYSTEMS & TELEMETRY -->
+                <div class="absolute top-2 left-2 z-20 font-mono text-[8.5px] text-cyan-400/90 pointer-events-none space-y-1.5 max-w-[125px]">
+                    <div class="bg-black/65 backdrop-blur-sm p-1.5 rounded border border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.2)]">
+                        <div class="text-purple-300 font-bold tracking-wider border-b border-purple-500/30 pb-0.5 mb-1">OCCULT SYSTEMS</div>
+                        <div>FPS: <span id="fps-counter" class="text-pink-400">60</span></div>
+                        <div>NEURAL SYNC: <span id="neural-sync" class="text-cyan-300">100%</span></div>
+                        <div>ORB FLUX: <span id="orb-flux" class="text-purple-400">STABLE</span></div>
+                    </div>
+
+                    <!-- Arcane Sigil Emblem -->
+                    <div class="w-14 h-14 rounded-full border border-pink-500/30 bg-purple-950/20 flex items-center justify-center relative opacity-80">
+                        <div class="w-11 h-11 rounded-full border border-dashed border-cyan-400/50 arcane-spin flex items-center justify-center">
+                            <i class="fa-solid fa-eye text-pink-400/80 text-xs"></i>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="absolute top-2 right-2 z-20 font-mono text-[9px] text-pink-400/90 pointer-events-none bg-black/50 p-1.5 rounded border border-pink-500/20 text-right">
-                    <div>MODE: <span id="avatar-state" class="text-cyan-300">IDLE</span></div>
-                    <div>RENDER: <span id="render-mode" class="text-purple-300">HOLO-SYNTH</span></div>
+                <!-- Right HUD Overlay: VITALS & INVENTORY -->
+                <div class="absolute top-2 right-2 z-20 font-mono text-[8.5px] text-pink-400/90 pointer-events-none bg-black/65 backdrop-blur-sm p-1.5 rounded border border-cyan-500/40 text-right space-y-0.5 max-w-[130px] shadow-[0_0_10px_rgba(0,240,255,0.15)]">
+                    <div class="text-cyan-300 font-bold tracking-wider border-b border-cyan-500/30 pb-0.5 mb-1">VITALS &amp; CORE</div>
+                    <div>STATE: <span id="avatar-state" class="text-cyan-300 font-bold">IDLE</span></div>
+                    <div>HEALTH: <span class="text-green-400">100%</span></div>
+                    <div>MANA CORE: <span class="text-purple-300">98.4%</span></div>
+                    <div>KATANA: <span class="text-pink-400">CHARGED</span></div>
+                    <div>RENDER: <span id="render-mode" class="text-yellow-300">SPRITE-2D</span></div>
                 </div>
 
-                <div class="absolute bottom-1 right-2 z-20 font-mono text-[9px] text-slate-400 pointer-events-none">
-                    TAP AVATAR TO SWITCH MODE
+                <!-- Bottom Energy Core Bar -->
+                <div class="absolute bottom-1.5 left-2 z-20 font-mono text-[8.5px] bg-black/70 px-2 py-0.5 rounded border border-purple-500/40 flex items-center gap-1.5 pointer-events-none">
+                    <span class="text-purple-300">ENERGY CORE</span>
+                    <div class="w-14 h-1.5 bg-slate-900 rounded-full overflow-hidden border border-pink-500/40">
+                        <div class="h-full w-[92%] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-400 animate-pulse"></div>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-1.5 right-2 z-20 font-mono text-[8.5px] text-cyan-300/80 bg-black/60 px-1.5 py-0.5 rounded border border-cyan-500/20 pointer-events-none">
+                    TAP SUKI TO CYCLE MODE
                 </div>
             </div>
 
@@ -281,8 +315,7 @@
                         <i class="fa-solid fa-terminal text-pink-500"></i> SYSTEM INITIALIZED
                     </p>
                     <p class="text-slate-300 text-xs leading-relaxed">
-                        Konnichiwa! I am <strong class="text-pink-400">SukiBot v2.0</strong>, your Cyberpunk AI assistant. 
-                        My 2D anime cyber avatar is live and synchronized. Talk or type to interact!
+                        Konnichiwa! I am <strong class="text-pink-400">SukiBot</strong>. Occult systems and cyber-katana diagnostics are online. Speak or transmit a neural prompt below!
                     </p>
                 </div>
             </main>
@@ -293,7 +326,7 @@
                     ⚡ Neural Status
                 </button>
                 <button type="button" class="chip-btn px-2 py-1 rounded bg-cyberCard border border-pink-500/40 text-pink-300 hover:bg-pink-500/20 whitespace-nowrap transition">
-                    🎌 Cyberpunk Haiku
+                    🔮 Occult Diagnostics
                 </button>
                 <button type="button" class="chip-btn px-2 py-1 rounded bg-cyberCard border border-purple-500/40 text-purple-300 hover:bg-purple-500/20 whitespace-nowrap transition">
                     💻 Write Python Script
@@ -380,10 +413,10 @@
                 this.canvas = document.getElementById(canvasId);
                 this.ctx = this.canvas.getContext('2d');
                 this.state = 'IDLE'; // IDLE, TALKING, LISTENING, THINKING
-                this.logicalWidth = 300;
-                this.logicalHeight = 250;
+                this.logicalWidth = 360;
+                this.logicalHeight = 350;
                 
-                // Image Asset with Resilient Procedural Fallback
+                // Load image_2f366b.jpg with Resilient Procedural Fallback
                 this.avatarImg = new Image();
                 this.imgLoaded = false;
                 this.imgFailed = false;
@@ -399,6 +432,8 @@
                 };
                 this.avatarImg.onerror = () => {
                     this.imgFailed = true;
+                    const badge = document.getElementById('render-mode');
+                    if (badge) badge.innerText = 'HOLO-SYNTH';
                 };
                 this.avatarImg.src = imageSrc;
 
@@ -436,7 +471,7 @@
                 const rect = this.canvas.parentElement.getBoundingClientRect();
                 const dpr = Math.min(window.devicePixelRatio || 1, 2);
                 this.logicalWidth = rect.width || 360;
-                this.logicalHeight = rect.height || 240;
+                this.logicalHeight = rect.height || 350;
                 this.canvas.width = this.logicalWidth * dpr;
                 this.canvas.height = this.logicalHeight * dpr;
                 this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -451,14 +486,14 @@
 
             initParticles() {
                 this.particles = [];
-                for (let i = 0; i < 40; i++) {
+                for (let i = 0; i < 45; i++) {
                     this.particles.push({
                         x: Math.random() * this.logicalWidth,
                         y: Math.random() * this.logicalHeight,
-                        radius: Math.random() * 2 + 0.5,
-                        speedX: (Math.random() - 0.5) * 0.9,
-                        speedY: (Math.random() - 0.5) * 0.9,
-                        color: Math.random() > 0.5 ? '#00f0ff' : '#ff2a8d'
+                        radius: Math.random() * 2 + 0.6,
+                        speedX: (Math.random() - 0.5) * 0.85,
+                        speedY: -0.25 - Math.random() * 0.6, // Upward cyber embers/mana motes
+                        color: Math.random() > 0.45 ? '#a855f7' : (Math.random() > 0.5 ? '#00f0ff' : '#ff2a8d')
                     });
                 }
             }
@@ -467,12 +502,17 @@
                 this.state = newState;
                 const el = document.getElementById('avatar-state');
                 if (el) el.innerText = newState;
+                const orbEl = document.getElementById('orb-flux');
+                if (orbEl) {
+                    orbEl.innerText = newState === 'THINKING' ? 'SURGING' : (newState === 'TALKING' ? 'RESONATING' : 'STABLE');
+                }
             }
 
             drawParticles() {
                 this.particles.forEach(p => {
-                    p.x += p.speedX * (this.state === 'THINKING' ? 2.2 : 1);
-                    p.y += p.speedY * (this.state === 'THINKING' ? 2.2 : 1);
+                    const mult = this.state === 'THINKING' ? 2.4 : (this.state === 'TALKING' ? 1.5 : 1);
+                    p.x += p.speedX * mult;
+                    p.y += p.speedY * mult;
 
                     if (p.x < 0) p.x = this.logicalWidth;
                     if (p.x > this.logicalWidth) p.x = 0;
@@ -482,7 +522,7 @@
                     this.ctx.beginPath();
                     this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
                     this.ctx.fillStyle = p.color;
-                    this.ctx.shadowBlur = 6;
+                    this.ctx.shadowBlur = 7;
                     this.ctx.shadowColor = p.color;
                     this.ctx.fill();
                     this.ctx.shadowBlur = 0;
@@ -490,10 +530,8 @@
             }
 
             drawProceduralCyberAvatar(ctx) {
-                // Cybernetic Neon Anime Avatar fallback if image.png is absent
                 const stateColor = this.state === 'THINKING' ? '#ffe600' : (this.state === 'LISTENING' ? '#ff2a8d' : '#00f0ff');
 
-                // Back hair silhouette
                 ctx.fillStyle = '#120824';
                 ctx.strokeStyle = '#bf5af2';
                 ctx.lineWidth = 2;
@@ -508,7 +546,6 @@
                 ctx.fill();
                 ctx.stroke();
 
-                // Cyber Cat Ears
                 [[-42, -55, -62, -108, -16, -72], [42, -55, 62, -108, 16, -72]].forEach(([x1, y1, x2, y2, x3, y3]) => {
                     ctx.fillStyle = '#0d061a';
                     ctx.strokeStyle = '#ff2a8d';
@@ -520,46 +557,8 @@
                     ctx.closePath();
                     ctx.fill();
                     ctx.stroke();
-
-                    // Inner neon ear triangle
-                    ctx.fillStyle = 'rgba(0, 240, 255, 0.35)';
-                    ctx.beginPath();
-                    ctx.moveTo(x1 * 0.9, y1 - 4);
-                    ctx.lineTo(x2 * 0.92, y2 + 12);
-                    ctx.lineTo(x3 * 0.95, y3 - 2);
-                    ctx.closePath();
-                    ctx.fill();
                 });
 
-                // Cyber Collar & Shoulders
-                ctx.fillStyle = '#160b2c';
-                ctx.strokeStyle = stateColor;
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(-55, 85);
-                ctx.quadraticCurveTo(0, 42, 55, 85);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-
-                // Core Reactor Gem on Chest
-                const pulse = 1 + Math.sin(Date.now() * 0.008) * 0.2;
-                ctx.save();
-                ctx.translate(0, 68);
-                ctx.scale(pulse, pulse);
-                ctx.fillStyle = '#ff2a8d';
-                ctx.shadowBlur = 14;
-                ctx.shadowColor = '#ff2a8d';
-                ctx.beginPath();
-                ctx.moveTo(0, -10);
-                ctx.lineTo(10, 0);
-                ctx.lineTo(0, 10);
-                ctx.lineTo(-10, 0);
-                ctx.closePath();
-                ctx.fill();
-                ctx.restore();
-
-                // Anime Face Contour
                 ctx.fillStyle = '#f8e6f0';
                 ctx.strokeStyle = '#ff2a8d';
                 ctx.lineWidth = 1.5;
@@ -571,7 +570,6 @@
                 ctx.fill();
                 ctx.stroke();
 
-                // Eyes (with pointer tracking and blink)
                 const lookX = this.pointerX * 4;
                 const lookY = this.pointerY * 2.5;
                 const eyeOpenScale = Math.max(0.08, 1 - this.eyeBlink);
@@ -580,68 +578,17 @@
                     ctx.save();
                     ctx.translate(ex, -16);
                     ctx.scale(1, eyeOpenScale);
-
-                    // Eye sclera/base
                     ctx.fillStyle = '#140826';
                     ctx.beginPath();
                     ctx.ellipse(0, 0, 11, 13, 0, 0, Math.PI * 2);
                     ctx.fill();
 
-                    // Neon iris
                     ctx.fillStyle = stateColor;
-                    ctx.shadowBlur = 10;
-                    ctx.shadowColor = stateColor;
                     ctx.beginPath();
                     ctx.arc(lookX, lookY, 6.5, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.shadowBlur = 0;
-
-                    // Highlight catchlight
-                    ctx.fillStyle = '#ffffff';
-                    ctx.beginPath();
-                    ctx.arc(lookX - 2.5, lookY - 2.5, 2.2, 0, Math.PI * 2);
-                    ctx.fill();
-
                     ctx.restore();
                 });
-
-                // Front Hair Bangs
-                ctx.fillStyle = '#190b33';
-                ctx.strokeStyle = '#a855f7';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(-48, -36);
-                ctx.lineTo(-26, -68);
-                ctx.lineTo(-10, -32);
-                ctx.lineTo(0, -65);
-                ctx.lineTo(12, -30);
-                ctx.lineTo(28, -68);
-                ctx.lineTo(48, -36);
-                ctx.quadraticCurveTo(0, -88, -48, -36);
-                ctx.fill();
-                ctx.stroke();
-
-                // Mouth Lip-Sync
-                ctx.save();
-                ctx.translate(0, 7);
-                if (this.mouthOpen > 0.08) {
-                    const mH = 2 + this.mouthOpen * 7;
-                    const mW = 6 + this.mouthOpen * 3;
-                    ctx.fillStyle = '#4c0519';
-                    ctx.strokeStyle = '#ff2a8d';
-                    ctx.lineWidth = 1.5;
-                    ctx.beginPath();
-                    ctx.ellipse(0, 0, mW, mH, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
-                } else {
-                    ctx.strokeStyle = '#ff2a8d';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(0, -2, 6, 0.15 * Math.PI, 0.85 * Math.PI);
-                    ctx.stroke();
-                }
-                ctx.restore();
             }
 
             render() {
@@ -672,136 +619,122 @@
 
                 // Mouth movement dynamically calculated
                 if (this.state === 'TALKING') {
-                    this.mouthOpen = 0.2 + Math.abs(Math.sin(Date.now() * 0.02)) * 0.8;
+                    this.mouthOpen = 0.25 + Math.abs(Math.sin(Date.now() * 0.022)) * 0.75;
                 } else if (this.state === 'LISTENING') {
-                    this.mouthOpen = 0.1;
+                    this.mouthOpen = 0.12;
                 } else {
                     this.mouthOpen = 0;
                 }
 
-                // Breathing motion
-                const breathOffsetY = Math.sin(Date.now() * 0.0025) * 4;
-                const talkBounceY = this.state === 'TALKING' ? Math.sin(Date.now() * 0.015) * 3 : 0;
-                
-                // Head tilt target calculation
-                const targetTilt = this.state === 'LISTENING' ? 0.08 : (this.state === 'THINKING' ? -0.05 : 0);
+                // Subtle Breathing & Hover Motion
+                const breathOffsetY = Math.sin(Date.now() * 0.0025) * 3.5;
+                const talkBounceY = this.state === 'TALKING' ? Math.sin(Date.now() * 0.016) * 2.5 : 0;
+                const targetTilt = this.state === 'LISTENING' ? 0.04 : (this.state === 'THINKING' ? -0.03 : 0);
                 this.tiltAngle += (targetTilt - this.tiltAngle) * 0.1;
 
                 ctx.save();
-                ctx.translate(cx + this.pointerX * 8, cy + 12 + breathOffsetY + talkBounceY + this.pointerY * 5);
+                ctx.translate(cx + this.pointerX * 6, cy + breathOffsetY + talkBounceY + this.pointerY * 4);
                 ctx.rotate(this.tiltAngle);
 
-                // 1. Thinking / Cyber Halo Ring
-                if (this.state === 'THINKING' || this.state === 'TALKING') {
-                    ctx.save();
-                    ctx.translate(0, -35);
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 88, 0, Math.PI * 2);
-                    ctx.strokeStyle = this.state === 'THINKING' ? '#ffe600' : '#00f0ff';
-                    ctx.lineWidth = 2;
-                    ctx.setLineDash([12, 8]);
-                    ctx.rotate(Date.now() * 0.003);
-                    ctx.shadowBlur = 12;
-                    ctx.shadowColor = ctx.strokeStyle;
-                    ctx.stroke();
-                    ctx.restore();
-                }
-
-                // 2. Render Custom Sprite OR Procedural Cyber Avatar Fallback
                 if (this.imgLoaded) {
+                    // Scale full-body image_2f366b.jpg cleanly into viewport
                     const aspect = this.avatarImg.width / this.avatarImg.height;
-                    const drawHeight = height * 0.92;
+                    const drawHeight = height * 0.96;
                     const drawWidth = drawHeight * aspect;
+                    const scale = drawHeight / 350; // Normalized proportional scale
 
-                    ctx.shadowBlur = 20;
-                    ctx.shadowColor = 'rgba(168, 85, 247, 0.4)';
+                    // Soft edge vignette & purple neon aura behind sprite
+                    ctx.save();
+                    ctx.shadowBlur = 24;
+                    ctx.shadowColor = this.state === 'THINKING' ? 'rgba(255, 230, 0, 0.5)' : 'rgba(168, 85, 247, 0.55)';
                     ctx.drawImage(
-                        this.avatarImg, 
-                        -drawWidth / 2, 
-                        -drawHeight / 2 - 10, 
-                        drawWidth, 
+                        this.avatarImg,
+                        -drawWidth / 2,
+                        -drawHeight / 2,
+                        drawWidth,
                         drawHeight
                     );
-                    ctx.shadowBlur = 0;
+                    ctx.restore();
 
-                    // Dynamic Eye Overlays
-                    const eyeY = -68;
-                    const leftEyeX = -43;
-                    const rightEyeX = 14;
+                    // 1. Floating Purple Plasma Orb Aura (Aligned to Suki's raised right hand)
+                    const orbX = -46 * scale;
+                    const orbY = -92 * scale;
+                    const orbPulse = 1 + Math.sin(Date.now() * 0.007) * 0.18 + (this.state === 'THINKING' ? 0.28 : 0);
 
-                    if (this.eyeBlink > 0.1) {
-                        ctx.fillStyle = '#1c102a';
-                        const blinkH = 12 * this.eyeBlink;
+                    ctx.save();
+                    ctx.translate(orbX, orbY);
+                    ctx.scale(orbPulse, orbPulse);
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 22 * scale, 0, Math.PI * 2);
+                    ctx.strokeStyle = this.state === 'THINKING' ? '#ffe600' : '#bf5af2';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([8, 6]);
+                    ctx.rotate(Date.now() * 0.004);
+                    ctx.shadowBlur = 14;
+                    ctx.shadowColor = '#bf5af2';
+                    ctx.stroke();
+                    ctx.restore();
+
+                    // 2. Cyber-Katana Energy Shimmer (Aligned along diagonal blade)
+                    if (this.state === 'TALKING' || this.state === 'THINKING') {
+                        ctx.save();
+                        ctx.strokeStyle = this.state === 'THINKING' ? 'rgba(255, 230, 0, 0.55)' : 'rgba(0, 240, 255, 0.5)';
+                        ctx.lineWidth = 2;
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = ctx.strokeStyle;
                         ctx.beginPath();
-                        ctx.ellipse(leftEyeX, eyeY, 12, blinkH, 0, 0, Math.PI * 2);
-                        ctx.ellipse(rightEyeX, eyeY, 12, blinkH, 0, 0, Math.PI * 2);
+                        ctx.moveTo(46 * scale, 22 * scale);
+                        ctx.lineTo(-10 * scale, 130 * scale);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+
+                    // 3. Dynamic Eye Blink & Scanner Overlays (Calibrated to face coordinates)
+                    const eyeY = -124 * scale;
+                    const leftEyeX = -5 * scale;
+                    const rightEyeX = 11 * scale;
+
+                    if (this.eyeBlink > 0.12) {
+                        ctx.fillStyle = '#1b0d2e';
+                        const blinkH = 4.2 * scale * this.eyeBlink;
+                        ctx.beginPath();
+                        ctx.ellipse(leftEyeX, eyeY, 4.5 * scale, blinkH, 0, 0, Math.PI * 2);
+                        ctx.ellipse(rightEyeX, eyeY, 4.5 * scale, blinkH, 0, 0, Math.PI * 2);
                         ctx.fill();
                     }
 
                     if (this.state === 'LISTENING' || this.state === 'THINKING') {
                         ctx.save();
-                        ctx.translate(leftEyeX, eyeY);
-                        ctx.fillStyle = '#ff2a8d';
-                        ctx.shadowBlur = 12;
-                        ctx.shadowColor = '#ff2a8d';
-                        ctx.beginPath();
-                        ctx.arc(0, 0, 4, 0, Math.PI * 2);
-                        ctx.fill();
-
+                        ctx.translate(rightEyeX, eyeY);
                         ctx.strokeStyle = '#00f0ff';
                         ctx.lineWidth = 1;
-                        ctx.rotate(Date.now() * 0.005);
+                        ctx.rotate(Date.now() * 0.006);
                         ctx.beginPath();
-                        ctx.arc(0, 0, 9, 0, Math.PI * 2);
-                        ctx.moveTo(-11, 0); ctx.lineTo(11, 0);
-                        ctx.moveTo(0, -11); ctx.lineTo(0, 11);
+                        ctx.arc(0, 0, 5.5 * scale, 0, Math.PI * 2);
                         ctx.stroke();
                         ctx.restore();
                     }
 
-                    // Dynamic Mouth Lip-Sync Overlay
-                    const mouthX = -14 + (this.pointerX * 2);
-                    const mouthY = -23;
+                    // 4. Lip-Sync Mouth Overlay
+                    const mouthX = 2.5 * scale + (this.pointerX * 0.8);
+                    const mouthY = -111 * scale;
 
                     if (this.mouthOpen > 0.08) {
-                        const mHeight = 2 + (this.mouthOpen * 9);
-                        const mWidth = 7 + (this.mouthOpen * 2);
+                        const mHeight = (1.2 + this.mouthOpen * 3.2) * scale;
+                        const mWidth = (2.8 + this.mouthOpen * 1.1) * scale;
 
                         ctx.save();
                         ctx.translate(mouthX, mouthY);
-                        ctx.fillStyle = '#4c0519';
+                        ctx.fillStyle = '#3b0722';
                         ctx.beginPath();
                         ctx.ellipse(0, 0, mWidth, mHeight, 0, 0, Math.PI * 2);
                         ctx.fill();
 
                         ctx.strokeStyle = '#ff2a8d';
-                        ctx.lineWidth = 1.5;
-                        ctx.shadowBlur = 6;
-                        ctx.shadowColor = '#ff2a8d';
+                        ctx.lineWidth = 1;
                         ctx.stroke();
-
-                        ctx.fillStyle = '#ec4899';
-                        ctx.beginPath();
-                        ctx.arc(0, mHeight * 0.3, mWidth * 0.5, 0, Math.PI);
-                        ctx.fill();
                         ctx.restore();
                     }
-
-                    // Chest Core Power Pulse Overlay
-                    const orbX = -13;
-                    const orbY = 32;
-                    const orbScale = 1 + Math.sin(Date.now() * 0.006) * 0.15 + (this.state === 'TALKING' ? 0.2 : 0);
-
-                    ctx.save();
-                    ctx.translate(orbX, orbY);
-                    ctx.scale(orbScale, orbScale);
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 16, 0, Math.PI * 2);
-                    ctx.fillStyle = 'rgba(255, 42, 141, 0.25)';
-                    ctx.shadowBlur = 18;
-                    ctx.shadowColor = '#ff2a8d';
-                    ctx.fill();
-                    ctx.restore();
                 } else {
                     this.drawProceduralCyberAvatar(ctx);
                 }
@@ -816,16 +749,16 @@
                 const text = prompt.toLowerCase();
                 let response = "";
 
-                if (text.includes("haiku")) {
-                    response = "Neon shadows fall,\nDigital heart beats in sync,\nCyber city wakes.";
+                if (text.includes("occult") || text.includes("diagnostics")) {
+                    response = "[OCCULT & ARCANE DIAGNOSTICS]\nAstral Sigil: Synchronized\nPlasma Orb Flux: 99.2% Nominal\nCyber-Katana Edge: Phase-Locked\nNo spectral anomalies detected in Sector 7.";
                 } else if (text.includes("status") || text.includes("neural")) {
-                    response = "[SYSTEM DIAGNOSTIC]\nCore Temperature: 34°C\nNeural Mesh: Operational (100% Sync)\nVRAM Buffer: Nominal\nAll sub-routines running smoothly.";
+                    response = "[SYSTEM DIAGNOSTIC]\nCore Temperature: 34°C\nNeural Mesh: Operational (100% Sync)\nMana Core: 98.4% Charged\nAll sub-routines running smoothly.";
                 } else if (text.includes("python") || text.includes("script")) {
                     response = "Here is your requested Python snippet:\n\n```python\ndef cyber_pulse():\n    status = 'ONLINE'\n    print(f'[SUKI_AI] Neural Status: {status}')\n\ncyber_pulse()\n```";
                 } else if (text.includes("lore") || text.includes("city")) {
-                    response = "Neo-Tokyo, Sector 7: High above the rain-slicked pavement, quantum datalinks illuminate the smog. SukiBot monitors all traffic nodes to keep operators safe.";
+                    response = "Neo-Tokyo, Sector 7: High above the rain-slicked pavement, quantum datalinks and arcane sigils illuminate the smog. SukiBot monitors all traffic nodes to keep operators safe.";
                 } else {
-                    response = `[SUKIBOT RESPONSE]: I have analyzed your neural query: "${prompt}". All local subsystems are locked and operational. Command confirmed.`;
+                    response = `[SUKIBOT RESPONSE]: I have analyzed your neural query: "${prompt}". All occult and cybernetic subsystems are locked and operational. Command confirmed.`;
                 }
 
                 const words = response.split(" ");
@@ -887,7 +820,7 @@
 
                 try {
                     const messages = [
-                        { role: "system", content: "You are SukiBot, an upbeat, helpful, cyberpunk anime AI assistant." },
+                        { role: "system", content: "You are SukiBot, an upbeat, helpful, cyberpunk anime AI assistant with occult tech aesthetics." },
                         { role: "user", content: prompt }
                     ];
                     const chunks = await this.engine.chat.completions.create({
@@ -908,7 +841,8 @@
 
         // --- Application Main Initialization & DOM Binding ---
         window.addEventListener('DOMContentLoaded', () => {
-            const avatar = new CyberAvatarEngine('avatar-canvas', 'image.png');
+            // Point directly to your uploaded avatar file
+            const avatar = new CyberAvatarEngine('avatar-canvas', 'image_2f366b.jpg');
             const llm = new WebLLMController();
             let isGenerating = false;
 
