@@ -1,279 +1,800 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>SukiBot // CYBER HUD & ANIME AVATAR ENGINE</title>
-    
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- FontAwesome Icons CDN -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-    
-    <!-- WebLLM Engine CDN Module Import with Error Guard -->
-    <script type="module">
-        try {
-            const webLLM = await import("https://esm.run/@mlc-ai/web-llm");
-            window.webLLM = webLLM;
-            window.dispatchEvent(new CustomEvent('mlc-loaded'));
-        } catch (err) {
-            console.warn("WebLLM CDN module failed to load:", err);
-            window.webLLMError = err;
-        }
-    </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SUKI // Tactical HUD Interface</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet" />
+  <style>
+    /* ==========================================================================
+       DYNAMIC THEME VARIABLES DRIVEN BY body[data-suki-mode]
+       ========================================================================== */
+    :root {
+      --hud-primary: #00f0ff;
+      --hud-primary-dim: rgba(0, 240, 255, 0.16);
+      --hud-primary-glow: rgba(0, 240, 255, 0.45);
+      --hud-bg: #050a10;
+      --hud-panel: rgba(8, 18, 28, 0.72);
+      --hud-grid: rgba(0, 240, 255, 0.06);
+      --hud-opacity: 1;
+      --ring-speed: 18s;
+      --pulse-speed: 4s;
+    }
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        cyberDark: '#05030a',
-                        cyberPanel: '#0d0718',
-                        cyberCard: '#140c26',
-                        cyberBorder: '#2a164d',
-                        cyberPurple: '#a855f7',
-                        cyberPink: '#ec4899',
-                        cyberCyan: '#06b6d4',
-                        cyberNeonPink: '#ff2a8d',
-                        cyberNeonCyan: '#00f0ff',
-                        cyberNeonPurple: '#bf5af2',
-                        cyberYellow: '#ffe600'
-                    },
-                    fontFamily: {
-                        orbitron: ['Orbitron', 'sans-serif'],
-                        rajdhani: ['Rajdhani', 'sans-serif'],
-                        mono: ['Share Tech Mono', 'monospace'],
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        * {
-            -webkit-tap-highlight-color: transparent;
-            box-sizing: border-box;
-        }
-        body {
-            background-color: #030207;
-            color: #e2e8f0;
-            font-family: 'Rajdhani', sans-serif;
-            user-select: none;
-            overflow-x: hidden;
-        }
+    body[data-suki-mode="idle"] {
+      --hud-primary: #00f0ff;
+      --hud-primary-dim: rgba(0, 240, 255, 0.14);
+      --hud-primary-glow: rgba(0, 240, 255, 0.45);
+      --hud-bg: #040911;
+      --hud-panel: rgba(6, 16, 26, 0.75);
+      --hud-grid: rgba(0, 240, 255, 0.05);
+      --hud-opacity: 1;
+      --ring-speed: 22s;
+      --pulse-speed: 4s;
+    }
 
-        ::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(13, 7, 24, 0.8);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #ff2a8d;
-            border-radius: 4px;
-        }
+    body[data-suki-mode="active"] {
+      --hud-primary: #00ff88;
+      --hud-primary-dim: rgba(0, 255, 136, 0.16);
+      --hud-primary-glow: rgba(0, 255, 136, 0.5);
+      --hud-bg: #04100b;
+      --hud-panel: rgba(6, 24, 16, 0.78);
+      --hud-grid: rgba(0, 255, 136, 0.07);
+      --hud-opacity: 1;
+      --ring-speed: 9s;
+      --pulse-speed: 2.2s;
+    }
 
-        .hud-card {
-            background: rgba(16, 9, 32, 0.85);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(191, 90, 242, 0.35);
-            box-shadow: 0 0 15px rgba(0,0,0,0.5);
-        }
+    body[data-suki-mode="stealth"] {
+      --hud-primary: #a855f7;
+      --hud-primary-dim: rgba(168, 85, 247, 0.12);
+      --hud-primary-glow: rgba(168, 85, 247, 0.3);
+      --hud-bg: #06040b;
+      --hud-panel: rgba(12, 8, 20, 0.65);
+      --hud-grid: rgba(168, 85, 247, 0.035);
+      --hud-opacity: 0.78;
+      --ring-speed: 32s;
+      --pulse-speed: 6s;
+    }
 
-        .scanlines {
-            background: linear-gradient(
-                to bottom,
-                rgba(255,255,255,0),
-                rgba(255,255,255,0) 50%,
-                rgba(0, 0, 0, 0.5) 50%,
-                rgba(0, 0, 0, 0.5)
-            );
-            background-size: 100% 4px;
-        }
+    body[data-suki-mode="combat"] {
+      --hud-primary: #ff2a55;
+      --hud-primary-dim: rgba(255, 42, 85, 0.2);
+      --hud-primary-glow: rgba(255, 42, 85, 0.65);
+      --hud-bg: #120408;
+      --hud-panel: rgba(28, 7, 13, 0.82);
+      --hud-grid: rgba(255, 42, 85, 0.08);
+      --hud-opacity: 1;
+      --ring-speed: 4.5s;
+      --pulse-speed: 0.9s;
+    }
 
-        .matrix-bg {
-            background-image: radial-gradient(rgba(0, 240, 255, 0.12) 1px, transparent 0);
-            background-size: 16px 16px;
-        }
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-        @keyframes pulseGlow {
-            0% { box-shadow: 0 0 0 0 rgba(255, 42, 141, 0.8); }
-            70% { box-shadow: 0 0 0 14px rgba(255, 42, 141, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 42, 141, 0); }
-        }
-        .mic-listening {
-            animation: pulseGlow 1.4s infinite;
-            background-color: #ff2a8d !important;
-            color: #ffffff !important;
-            border-color: #00f0ff !important;
-        }
+    body {
+      margin: 0;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      background-color: var(--hud-bg);
+      color: var(--hud-primary);
+      font-family: 'JetBrains Mono', monospace;
+      transition: background-color 0.45s ease, color 0.45s ease;
+    }
 
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
+    .font-display {
+      font-family: 'Orbitron', sans-serif;
+    }
 
-        .cyber-corner {
-            position: relative;
-        }
-        .cyber-corner::before {
-            content: '';
-            position: absolute;
-            top: -1px;
-            left: -1px;
-            width: 8px;
-            height: 8px;
-            border-top: 2px solid #00f0ff;
-            border-left: 2px solid #00f0ff;
-            z-index: 25;
-        }
-        .cyber-corner::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            right: -1px;
-            width: 8px;
-            height: 8px;
-            border-bottom: 2px solid #ff2a8d;
-            border-right: 2px solid #ff2a8d;
-            z-index: 25;
-        }
+    /* Background Tactical Grid & Scanlines */
+    .hud-grid-bg {
+      background-image:
+        linear-gradient(to right, var(--hud-grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--hud-grid) 1px, transparent 1px),
+        radial-gradient(circle at 50% 50%, var(--hud-primary-dim) 0%, transparent 68%);
+      background-size: 36px 36px, 36px 36px, 100% 100%;
+      transition: background-image 0.45s ease;
+    }
 
-        .equalizer-bar {
-            height: 20%;
-            transition: height 0.08s ease-out;
-        }
-        
-        .speaking-active .equalizer-bar {
-            animation: bounce 0.35s ease-in-out infinite alternate;
-        }
-        .speaking-active .equalizer-bar:nth-child(2) { animation-delay: 0.08s; }
-        .speaking-active .equalizer-bar:nth-child(3) { animation-delay: 0.16s; }
-        .speaking-active .equalizer-bar:nth-child(4) { animation-delay: 0.24s; }
-        .speaking-active .equalizer-bar:nth-child(5) { animation-delay: 0.12s; }
+    .scanlines {
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%,
+        rgba(0, 0, 0, 0.35) 50%
+      );
+      background-size: 100% 4px;
+      pointer-events: none;
+    }
 
-        @keyframes bounce {
-            0% { height: 15%; }
-            100% { height: 100%; }
-        }
+    /* Telemetry Panel Styling with Corner Brackets */
+    .hud-panel {
+      background: var(--hud-panel);
+      border: 1px solid var(--hud-primary-dim);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5), inset 0 0 12px var(--hud-primary-dim);
+      opacity: var(--hud-opacity);
+      transition: all 0.4s ease;
+      position: relative;
+    }
 
-        .glitch-text {
-            text-shadow: 2px 0 #00f0ff, -2px 0 #ff2a8d;
-        }
-    </style>
+    .hud-panel::before,
+    .hud-panel::after {
+      content: '';
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-color: var(--hud-primary);
+      border-style: solid;
+      transition: border-color 0.4s ease;
+      pointer-events: none;
+    }
+
+    .hud-panel::before {
+      top: -1px;
+      left: -1px;
+      border-width: 2px 0 0 2px;
+    }
+
+    .hud-panel::after {
+      bottom: -1px;
+      right: -1px;
+      border-width: 0 2px 2px 0;
+    }
+
+    /* Holographic Reticle Animations */
+    @keyframes spin-cw {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes spin-ccw {
+      from { transform: rotate(360deg); }
+      to { transform: rotate(0deg); }
+    }
+
+    @keyframes core-breathe {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px var(--hud-primary-glow)); }
+      50% { transform: scale(1.04); filter: drop-shadow(0 0 24px var(--hud-primary-glow)); }
+    }
+
+    @keyframes combat-shake {
+      0%, 100% { transform: translate(0, 0); }
+      25% { transform: translate(-1.5px, 1px); }
+      50% { transform: translate(1.5px, -1px); }
+      75% { transform: translate(-1px, -1.5px); }
+    }
+
+    .ring-outer {
+      animation: spin-cw var(--ring-speed) linear infinite;
+      transform-origin: center;
+    }
+
+    .ring-inner {
+      animation: spin-ccw calc(var(--ring-speed) * 0.65) linear infinite;
+      transform-origin: center;
+    }
+
+    .avatar-core-pulse {
+      animation: core-breathe var(--pulse-speed) ease-in-out infinite;
+      transform-origin: center;
+    }
+
+    body[data-suki-mode="combat"] .combat-alert-jitter {
+      animation: combat-shake 0.25s infinite;
+    }
+
+    body[data-suki-mode="combat"] .combat-reticle-lock {
+      transform: scale(0.92);
+      transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .combat-reticle-lock {
+      transform: scale(1);
+      transition: transform 0.4s ease;
+    }
+
+    /* Mode Selector Buttons */
+    .mode-btn {
+      border: 1px solid var(--hud-primary-dim);
+      background: rgba(0, 0, 0, 0.35);
+      color: var(--hud-primary);
+      transition: all 0.25s ease;
+    }
+
+    .mode-btn:hover {
+      background: var(--hud-primary-dim);
+      box-shadow: 0 0 12px var(--hud-primary-glow);
+    }
+
+    .mode-btn.active-mode {
+      background: var(--hud-primary);
+      color: #03060a;
+      font-weight: 700;
+      box-shadow: 0 0 16px var(--hud-primary-glow);
+    }
+
+    /* Tap Ripple Feedback */
+    @keyframes tap-ring {
+      0% { transform: scale(0.7); opacity: 0.9; }
+      100% { transform: scale(1.45); opacity: 0; }
+    }
+    .tap-burst {
+      animation: tap-ring 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
 </head>
-<body class="min-h-dvh flex items-center justify-center p-0 sm:p-4 bg-slate-950">
+<body data-suki-mode="idle" class="hud-grid-bg relative flex flex-col justify-between p-3 sm:p-5">
 
-    <!-- Screen Layout Wrapper -->
-    <div id="app-viewport" class="relative w-full max-w-[440px] sm:max-w-[480px] h-[100dvh] sm:h-[910px] bg-black sm:rounded-[48px] p-2 sm:p-3 shadow-[0_0_70px_rgba(255,42,141,0.3)] border-0 sm:border-4 border-slate-900 flex flex-col overflow-hidden transition-all duration-300">
-        
-        <!-- Dynamic Island / Top Notch -->
-        <div class="absolute top-3 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-full z-50 flex items-center justify-between px-3 border border-slate-800 shadow-md">
-            <div class="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center">
-                <div id="notch-dot" class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></div>
-            </div>
-            <span class="font-mono text-[9px] text-pink-400 tracking-tighter">SUKI_CORE v2</span>
-            <div id="notch-speaker" class="w-2 h-1 rounded-full bg-purple-600/80"></div>
+  <!-- CRT Scanline & Outer Frame Overlay -->
+  <div class="scanlines fixed inset-0 z-40"></div>
+  <div class="pointer-events-none fixed inset-2 sm:inset-3 border border-[var(--hud-primary-dim)] rounded-lg z-30 transition-colors duration-500"></div>
+
+  <!-- ========================================================================
+       TOP TELEMETRY BAR (LEFT & RIGHT CLUSTERS)
+       ======================================================================== -->
+  <header class="relative z-20 flex flex-col sm:flex-row justify-between items-stretch sm:items-start gap-3">
+
+    <!-- TOP-LEFT TELEMETRY CLUSTER: STATUS, ASSET, MODE -->
+    <div class="hud-panel rounded-md px-3.5 py-2.5 sm:px-4 sm:py-3 flex flex-wrap sm:flex-nowrap items-center gap-4 sm:gap-5">
+      <!-- Status -->
+      <div class="flex flex-col">
+        <span class="text-[10px] tracking-[0.2em] opacity-60 uppercase">SYS.STATUS</span>
+        <div class="flex items-center gap-2 mt-0.5">
+          <span class="w-2 h-2 rounded-full bg-[var(--hud-primary)] animate-ping"></span>
+          <span id="hud-status" class="text-xs sm:text-sm font-bold tracking-wider">BOOTING</span>
         </div>
+      </div>
 
-        <!-- Inner Cyber Container -->
-        <div class="relative w-full h-full bg-[#06030c] rounded-[32px] sm:rounded-[38px] flex flex-col overflow-hidden border border-pink-500/30">
-            
-            <!-- Scanlines & Matrix Overlays -->
-            <div id="scanlines-layer" class="absolute inset-0 scanlines pointer-events-none z-40 opacity-25"></div>
-            <div id="matrix-layer" class="absolute inset-0 matrix-bg pointer-events-none z-10"></div>
+      <div class="h-7 w-px bg-[var(--hud-primary-dim)] hidden sm:block"></div>
 
-            <!-- Header HUD -->
-            <header class="relative z-30 pt-8 px-4 pb-2 border-b border-purple-500/30 bg-cyberDark/90 flex justify-between items-center backdrop-blur-md">
-                <div>
-                    <div class="flex items-center space-x-2">
-                        <h1 class="font-orbitron font-extrabold text-sm tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-pink-500 to-purple-400 glitch-text">
-                            SUKIBOT // v2.0
-                        </h1>
-                        <span id="engine-badge" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 border border-cyan-500/50 text-cyan-300">DEMO</span>
-                    </div>
-                    <p class="font-mono text-[10px] text-cyan-400/80 flex items-center gap-1">
-                        STATUS: <span id="status-text" class="text-pink-400 font-bold">READY</span>
-                    </p>
-                </div>
-                
-                <div class="flex items-center space-x-1.5">
-                    <!-- 5-Bar Equalizer -->
-                    <div id="equalizer" class="flex items-end space-x-0.5 h-4 w-8 px-1 border border-purple-500/30 rounded bg-cyberCard">
-                        <div class="equalizer-bar w-1 bg-cyan-400 rounded-full"></div>
-                        <div class="equalizer-bar w-1 bg-pink-500 rounded-full"></div>
-                        <div class="equalizer-bar w-1 bg-purple-500 rounded-full"></div>
-                        <div class="equalizer-bar w-1 bg-cyan-400 rounded-full"></div>
-                        <div class="equalizer-bar w-1 bg-pink-400 rounded-full"></div>
-                    </div>
-                    
-                    <!-- HUD Controls Buttons -->
-                    <button id="toggle-debug-btn" title="Toggle Rig Anchor Debug" class="w-7 h-7 rounded bg-cyberCard border border-purple-500/40 text-slate-400 hover:text-yellow-300 text-xs flex items-center justify-center transition">
-                        <i class="fa-solid fa-crosshairs"></i>
-                    </button>
-                    <button id="toggle-sound-btn" title="Toggle Sound FX" class="w-7 h-7 rounded bg-cyberCard border border-purple-500/40 text-cyan-400 hover:text-pink-400 text-xs flex items-center justify-center transition">
-                        <i class="fa-solid fa-volume-high"></i>
-                    </button>
-                    <button id="toggle-scanlines-btn" title="Toggle Scanlines" class="w-7 h-7 rounded bg-cyberCard border border-purple-500/40 text-cyan-400 hover:text-pink-400 text-xs flex items-center justify-center transition">
-                        <i class="fa-solid fa-tv"></i>
-                    </button>
-                    <button id="expand-frame-btn" title="Expand View" class="hidden sm:flex w-7 h-7 rounded bg-cyberCard border border-purple-500/40 text-cyan-400 hover:text-pink-400 text-xs items-center justify-center transition">
-                        <i class="fa-solid fa-expand"></i>
-                    </button>
-                </div>
-            </header>
+      <!-- Asset State -->
+      <div class="flex flex-col">
+        <span class="text-[10px] tracking-[0.2em] opacity-60 uppercase">ASSET.CORE</span>
+        <span id="hud-asset" class="text-xs sm:text-sm font-bold tracking-wider mt-0.5">STANDBY</span>
+      </div>
 
-            <!-- Model Selection Bar / Download HUD -->
-            <section class="relative z-30 px-3 py-1.5 bg-cyberPanel/90 border-b border-purple-500/20 flex flex-col space-y-1 font-mono text-[11px]">
-                <div class="flex justify-between items-center">
-                    <label for="model-select" class="text-pink-400 text-[10px]">AI ENGINE MODEL:</label>
-                    <select id="model-select" class="bg-cyberDark border border-cyan-500/40 text-cyan-300 text-[10px] rounded px-1.5 py-0.5 focus:outline-none">
-                        <option value="simulated">⚡ FAST DEMO SIMULATOR (No VRAM requirement)</option>
-                        <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen 2.5 0.5B (Fast WebGPU)</option>
-                        <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 1B (High Quality WebGPU)</option>
-                        <option value="SmolLM2-360M-Instruct-q4f16_1-MLC">SmolLM2 360M (Ultra Lightweight)</option>
-                    </select>
-                </div>
-                
-                <!-- Model Download Bar -->
-                <div id="download-progress-container" class="hidden flex-col space-y-0.5">
-                    <div class="flex justify-between text-[9px] text-cyan-300">
-                        <span id="progress-text">Initializing Model Engine...</span>
-                        <span id="progress-percent">0%</span>
-                    </div>
-                    <div class="w-full h-1.5 bg-cyberDark rounded-full overflow-hidden border border-cyan-500/30">
-                        <div id="progress-bar" class="h-full bg-gradient-to-r from-cyan-400 to-pink-500 w-0 transition-all duration-200"></div>
-                    </div>
-                </div>
-            </section>
+      <div class="h-7 w-px bg-[var(--hud-primary-dim)] hidden sm:block"></div>
 
-            <!-- Interactive Anime Cyber Avatar Canvas Section -->
-            <div class="relative w-full h-64 sm:h-72 bg-gradient-to-b from-cyberDark via-cyberCard to-cyberPanel border-b border-purple-500/30 flex items-center justify-center overflow-hidden">
-                <canvas id="avatar-canvas" class="w-full h-full z-20 cursor-pointer touch-none"></canvas>
-                
-                <!-- Telemetry & Diagnostic HUD Overlay -->
-                <div class="absolute top-2 left-2 z-20 font-mono text-[9px] text-cyan-400/90 pointer-events-none space-y-0.5 bg-black/50 p-1.5 rounded border border-cyan-500/20">
-                    <div>FPS: <span id="fps-counter" class="text-pink-400">60</span></div>
-                    <div>ASSET: <span id="asset-status" class="text-green-400">LOADING</span></div>
-                    <div>NEURAL SYNC: <span id="neural-sync" class="text-cyan-300">100%</span></div>
-                </div>
+      <!-- Mode Badge -->
+      <div class="flex flex-col ml-auto sm:ml-0">
+        <span class="text-[10px] tracking-[0.2em] opacity-60 uppercase">OP.MODE</span>
+        <div class="mt-0.5 px-2.5 py-0.5 rounded bg-[var(--hud-primary-dim)] border border-[var(--hud-primary)] text-center combat-alert-jitter">
+          <span id="hud-mode" class="font-display text-xs sm:text-sm font-bold tracking-[0.18em]">IDLE</span>
+        </div>
+      </div>
+    </div>
 
-                <div class="absolute top-2 right-2 z-20 font-mono text-[9px] text-pink-400/90 pointer-events-none bg-black/50 p-1.5 rounded border border-pink-500/20 text-right">
-                    <div>MODE: <span id="avatar-state" class="text-cyan-300">IDLE</span></div>
-                    <div>GPU: <span id="gpu-status" class="text-purple-300">CHECKING</span></div>
-                </div>
+    <!-- TOP-RIGHT TELEMETRY CLUSTER: GPU, FPS, NEURAL SYNC -->
+    <div class="hud-panel rounded-md px-3.5 py-2.5 sm:px-4 sm:py-3 flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end gap-4 sm:gap-5">
+      <!-- GPU Hardware Readout -->
+      <div class="flex flex-col">
+        <span class="text-[10px] tracking-[0.2em] opacity-60 uppercase">RENDER.GPU</span>
+        <span id="hud-gpu" class="text-xs sm:text-sm font-semibold tracking-wider mt-0.5">PROBING...</span>
+      </div>
 
-                <div class="absolute bottom-1 right-2 z-20 font-mono text-[9px] text-slate-400 pointer-events-none">
-                    TAP AVATAR TO SWITCH MODE
-                </div>
-            </div>
+      <div class="h-7 w-px bg-[var(--hud-primary-dim)] hidden sm:block"></div>
 
-            <!-- Chat Output Container -->
-            <main id="chat-box" class="relative z-30 flex-1 overflow-y-auto p-3 space-y-2.5 font-rajdhani text-sm no-scrollbar
+      <!-- Live FPS Counter -->
+      <div class="flex flex-col min-w-[54px]">
+        <span class="text-[10px] tracking-[0.2em] opacity-60 uppercase">FRAME.FPS</span>
+        <div class="flex items-baseline gap-1 mt-0.5">
+          <span id="hud-fps" class="text-xs sm:text-sm font-bold tabular-nums">60</span>
+          <span class="text-[10px] opacity-60">HZ</span>
+        </div>
+      </div>
+
+      <div class="h-7 w-px bg-[var(--hud-primary-dim)] hidden sm:block"></div>
+
+      <!-- Neural Sync + Progress Bar -->
+      <div class="flex flex-col min-w-[125px] flex-1 sm:flex-initial">
+        <div class="flex justify-between items-center text-[10px] tracking-[0.16em]">
+          <span class="opacity-60 uppercase">NEURAL.SYNC</span>
+          <span id="hud-neural-sync" class="font-bold tabular-nums">45%</span>
+        </div>
+        <div class="w-full h-2 bg-black/50 border border-[var(--hud-primary-dim)] rounded-sm mt-1.5 overflow-hidden p-[1px]">
+          <div
+            id="neural-sync-bar"
+            class="h-full bg-[var(--hud-primary)] transition-all duration-500 ease-out"
+            style="width: 45%; box-shadow: 0 0 8px var(--hud-primary-glow);"
+          ></div>
+        </div>
+      </div>
+    </div>
+
+  </header>
+
+  <!-- ========================================================================
+       CENTER INTERACTIVE STAGE & HOLOGRAPHIC AVATAR ("SUKI")
+       ======================================================================== -->
+  <main
+    id="hud-stage"
+    class="relative z-10 flex-1 flex flex-col items-center justify-center cursor-pointer overflow-hidden my-2"
+    title="Tap stage or avatar to cycle HUD mode"
+  >
+    <!-- Reactive Ambient Particle / Waveform Canvas -->
+    <canvas id="stage-canvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+
+    <!-- Decorative Side Axis Scales -->
+    <div class="hidden md:flex flex-col justify-between h-64 absolute left-6 opacity-40 text-[10px] tracking-widest pointer-events-none">
+      <span>+090° ELEV</span>
+      <span>+045° ----</span>
+      <span class="text-[var(--hud-primary)] font-bold">000° LOCK</span>
+      <span>-045° ----</span>
+      <span>-090° NADIR</span>
+    </div>
+
+    <div class="hidden md:flex flex-col justify-between items-end h-64 absolute right-6 opacity-40 text-[10px] tracking-widest pointer-events-none">
+      <span>SYNC // BUS_01</span>
+      <span>CORE // SUKI_V4</span>
+      <span class="text-[var(--hud-primary)] font-bold">LINK // ACTIVE</span>
+      <span>MEM // 0x7FF4A</span>
+      <span>TEMP // 34.2°C</span>
+    </div>
+
+    <!-- Interactive Holographic Avatar Core -->
+    <div
+      id="hud-avatar"
+      class="relative flex items-center justify-center w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 combat-reticle-lock group"
+    >
+      <!-- Dynamic Tap Burst Container -->
+      <div id="tap-burst-layer" class="absolute inset-0 pointer-events-none flex items-center justify-center"></div>
+
+      <!-- Vector Holographic Reticle & Cybernetic Silhouette -->
+      <svg viewBox="0 0 400 400" class="w-full h-full overflow-visible">
+        <defs>
+          <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="currentColor" stop-opacity="0.35" />
+            <stop offset="65%" stop-color="currentColor" stop-opacity="0.08" />
+            <stop offset="100%" stop-color="currentColor" stop-opacity="0" />
+          </radialGradient>
+          <linearGradient id="visorGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="currentColor" stop-opacity="0.15" />
+            <stop offset="50%" stop-color="currentColor" stop-opacity="0.85" />
+            <stop offset="100%" stop-color="currentColor" stop-opacity="0.15" />
+          </linearGradient>
+        </defs>
+
+        <!-- Ambient Core Aura -->
+        <circle cx="200" cy="200" r="165" fill="url(#coreGlow)" class="avatar-core-pulse" />
+
+        <!-- Outer Rotating Segmented Telemetry Ring -->
+        <g class="ring-outer" stroke="currentColor" fill="none">
+          <circle cx="200" cy="200" r="182" stroke-width="1" stroke-dasharray="14 8 3 8" opacity="0.55" />
+          <circle cx="200" cy="200" r="172" stroke-width="2.5" stroke-dasharray="65 115" opacity="0.85" />
+          <!-- Cardinal Ticks -->
+          <line x1="200" y1="8" x2="200" y2="22" stroke-width="2" />
+          <line x1="200" y1="378" x2="200" y2="392" stroke-width="2" />
+          <line x1="8" y1="200" x2="22" y2="200" stroke-width="2" />
+          <line x1="378" y1="200" x2="392" y2="200" stroke-width="2" />
+        </g>
+
+        <!-- Counter-Rotating Inner Tactical Ring -->
+        <g class="ring-inner" stroke="currentColor" fill="none">
+          <circle cx="200" cy="200" r="144" stroke-width="1.2" stroke-dasharray="4 10" opacity="0.7" />
+          <path d="M 200 46 A 154 154 0 0 1 333 123" stroke-width="3" opacity="0.9" />
+          <path d="M 200 354 A 154 154 0 0 1 67 277" stroke-width="3" opacity="0.9" />
+        </g>
+
+        <!-- Precision Crosshair Brackets -->
+        <g stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.75">
+          <path d="M 85 110 L 85 85 L 110 85" />
+          <path d="M 315 110 L 315 85 L 290 85" />
+          <path d="M 85 290 L 85 315 L 110 315" />
+          <path d="M 315 290 L 315 315 L 290 315" />
+        </g>
+
+        <!-- Stylized Cybernetic Silhouette ("SUKI") -->
+        <g class="avatar-core-pulse" stroke="currentColor" fill="none">
+          <!-- Shoulder / Collar Chassis -->
+          <path
+            d="M 118 296 L 142 254 L 172 246 L 200 256 L 228 246 L 258 254 L 282 296"
+            stroke-width="2"
+            fill="currentColor"
+            fill-opacity="0.08"
+          />
+          <path d="M 154 252 L 166 286 L 234 286 L 246 252" stroke-width="1.2" opacity="0.7" />
+
+          <!-- Neck / Neural Spine Conduit -->
+          <line x1="188" y1="224" x2="188" y2="250" stroke-width="1.5" opacity="0.8" />
+          <line x1="212" y1="224" x2="212" y2="250" stroke-width="1.5" opacity="0.8" />
+          <circle cx="200" cy="238" r="3" fill="currentColor" />
+
+          <!-- Cybernetic Head / Helmet Contour -->
+          <path
+            d="M 162 154 C 162 122, 238 122, 238 154 L 234 196 L 214 222 L 186 222 L 166 196 Z"
+            stroke-width="2"
+            fill="currentColor"
+            fill-opacity="0.1"
+          />
+
+          <!-- Cyber-Ear / Comms Array Nodes -->
+          <rect x="152" y="158" width="8" height="28" rx="2" stroke-width="1.5" fill="currentColor" fill-opacity="0.25" />
+          <rect x="240" y="158" width="8" height="28" rx="2" stroke-width="1.5" fill="currentColor" fill-opacity="0.25" />
+          <line x1="156" y1="158" x2="156" y2="132" stroke-width="1.2" opacity="0.8" />
+          <line x1="244" y1="158" x2="244" y2="132" stroke-width="1.2" opacity="0.8" />
+
+          <!-- Tactical Optical Visor -->
+          <polygon
+            points="168,164 232,164 226,178 205,175 195,175 174,178"
+            fill="url(#visorGrad)"
+            stroke-width="1.5"
+          />
+          <!-- Optical Eye Nodes -->
+          <circle cx="184" cy="170" r="2.2" fill="#ffffff" />
+          <circle cx="216" cy="170" r="2.2" fill="#ffffff" />
+
+          <!-- Forehead Crest & Chin Telemetry -->
+          <polygon points="200,130 206,144 200,150 194,144" fill="currentColor" fill-opacity="0.6" />
+          <line x1="190" y1="206" x2="210" y2="206" stroke-width="1.5" opacity="0.75" />
+        </g>
+
+        <!-- Identity Tag inside Reticle -->
+        <text
+          x="200"
+          y="324"
+          text-anchor="middle"
+          fill="currentColor"
+          class="font-display text-[13px] font-bold tracking-[0.35em]"
+          opacity="0.9"
+        >
+          SUKI // UNIT-01
+        </text>
+      </svg>
+    </div>
+  </main>
+
+  <!-- ========================================================================
+       BOTTOM INTERACTION HINT & QUICK-SELECT CONTROLS
+       ======================================================================== -->
+  <footer class="relative z-20 flex flex-col items-center gap-2.5">
+    <!-- Subtle Prompt Hint -->
+    <div class="text-[10px] sm:text-xs tracking-[0.24em] uppercase opacity-75 text-center animate-pulse">
+      [ TAP AVATAR OR STAGE TO CYCLE MODE ]
+    </div>
+
+    <!-- Control Bar: Quick-Select Modes + Asset Reload Simulation -->
+    <div class="hud-panel rounded-md px-3 py-2 flex flex-wrap items-center justify-center gap-2 w-full max-w-2xl">
+      <div class="flex items-center gap-1.5 flex-wrap justify-center" id="mode-buttons">
+        <button type="button" data-mode-index="0" class="mode-btn px-2.5 py-1.5 rounded text-[11px] tracking-wider uppercase cursor-pointer">
+          IDLE
+        </button>
+        <button type="button" data-mode-index="1" class="mode-btn px-2.5 py-1.5 rounded text-[11px] tracking-wider uppercase cursor-pointer">
+          ACTIVE
+        </button>
+        <button type="button" data-mode-index="2" class="mode-btn px-2.5 py-1.5 rounded text-[11px] tracking-wider uppercase cursor-pointer">
+          STEALTH
+        </button>
+        <button type="button" data-mode-index="3" class="mode-btn px-2.5 py-1.5 rounded text-[11px] tracking-wider uppercase cursor-pointer">
+          COMBAT
+        </button>
+      </div>
+
+      <div class="h-5 w-px bg-[var(--hud-primary-dim)] hidden sm:block mx-1"></div>
+
+      <!-- Simulate Asset Reload Button -->
+      <button
+        type="button"
+        id="reload-asset-btn"
+        class="mode-btn px-3 py-1.5 rounded text-[11px] tracking-wider uppercase cursor-pointer flex items-center gap-1.5"
+      >
+        <span>↻</span>
+        <span>Simulate Asset Reload</span>
+      </button>
+    </div>
+  </footer>
+
+  <script>
+    /* ==========================================================================
+       1. EXACT USER-PROVIDED HUD_MODES & SukiHudController CLASS
+       ========================================================================== */
+    const HUD_MODES = ['IDLE', 'ACTIVE', 'STEALTH', 'COMBAT'];
+
+    class SukiHudController {
+      constructor(elements = {}) {
+        this.el = elements;
+        this.modeIndex = 0;
+        this.frames = 0;
+        this.lastFpsTime = performance.now();
+        this.currentFps = 60;
+        this.assetReady = false;
+        this.rafId = null;
+      }
+
+      async init({ loadAsset, avatarTarget } = {}) {
+        this.setMode(this.modeIndex);
+        this.setStatus('READY');
+        this.checkGpu();
+        this.bindAvatarTap(avatarTarget);
+        this.startLoop();
+
+        if (typeof loadAsset === 'function') {
+          this.setAssetState('LOADING');
+          try {
+            await loadAsset();
+            this.assetReady = true;
+            this.setAssetState('ONLINE');
+          } catch (err) {
+            console.error('HUD asset load failed:', err);
+            this.setAssetState('FALLBACK');
+          }
+        }
+      }
+
+      setStatus(text) {
+        if (this.el.status) this.el.status.textContent = text;
+      }
+
+      setAssetState(state) {
+        if (this.el.asset) this.el.asset.textContent = state;
+      }
+
+      setMode(index) {
+        this.modeIndex = ((index % HUD_MODES.length) + HUD_MODES.length) % HUD_MODES.length;
+        const mode = HUD_MODES[this.modeIndex];
+        if (this.el.mode) this.el.mode.textContent = mode;
+        document.body.dataset.sukiMode = mode.toLowerCase();
+      }
+
+      cycleMode() {
+        this.setMode(this.modeIndex + 1);
+      }
+
+      bindAvatarTap(target) {
+        const node = target || this.el.avatar || this.el.stage;
+        if (!node) return;
+        node.addEventListener('pointerup', () => this.cycleMode(), { passive: true });
+      }
+
+      async checkGpu() {
+        if (!this.el.gpu) return;
+        try {
+          if (navigator.gpu) {
+            const adapter = await navigator.gpu.requestAdapter();
+            this.el.gpu.textContent = adapter ? 'WEBGPU READY' : 'UNAVAILABLE';
+          } else {
+            const glCanvas = document.createElement('canvas');
+            const gl = glCanvas.getContext('webgl2') || glCanvas.getContext('webgl');
+            this.el.gpu.textContent = gl ? 'WEBGL (NO WEBGPU)' : 'CPU / NONE';
+          }
+        } catch {
+          this.el.gpu.textContent = 'FALLBACK';
+        }
+      }
+
+      updateNeuralSync() {
+        if (!this.el.neuralSync) return;
+        // Example: tie sync percentage to asset + engine readiness instead of a static 100%
+        const sync = this.assetReady ? 100 : 45;
+        this.el.neuralSync.textContent = `${sync}%`;
+      }
+
+      startLoop() {
+        const tick = (now) => {
+          this.frames += 1;
+          const elapsed = now - this.lastFpsTime;
+          if (elapsed >= 500) {
+            this.currentFps = Math.round((this.frames * 1000) / elapsed);
+            if (this.el.fps) this.el.fps.textContent = String(this.currentFps);
+            this.updateNeuralSync();
+            this.frames = 0;
+            this.lastFpsTime = now;
+          }
+          this.rafId = requestAnimationFrame(tick);
+        };
+        this.rafId = requestAnimationFrame(tick);
+      }
+
+      destroy() {
+        if (this.rafId) cancelAnimationFrame(this.rafId);
+      }
+    }
+
+    /* ==========================================================================
+       2. UI WIRING, REACTIVE PARTICLE/WAVEFORM CANVAS & INTERACTIVE CONTROLS
+       ========================================================================== */
+    document.addEventListener('DOMContentLoaded', () => {
+      const elements = {
+        status: document.getElementById('hud-status'),
+        asset: document.getElementById('hud-asset'),
+        mode: document.getElementById('hud-mode'),
+        gpu: document.getElementById('hud-gpu'),
+        fps: document.getElementById('hud-fps'),
+        neuralSync: document.getElementById('hud-neural-sync'),
+        avatar: document.getElementById('hud-avatar'),
+        stage: document.getElementById('hud-stage')
+      };
+
+      const neuralSyncBar = document.getElementById('neural-sync-bar');
+      const modeButtons = document.querySelectorAll('#mode-buttons .mode-btn');
+      const reloadAssetBtn = document.getElementById('reload-asset-btn');
+      const tapBurstLayer = document.getElementById('tap-burst-layer');
+
+      // Instantiate SukiHudController
+      const hud = new SukiHudController(elements);
+
+      // Keep UI progress bar & active mode buttons synchronized with controller state
+      const syncUiVisuals = () => {
+        // Sync Neural Sync progress bar width
+        const pct = hud.assetReady ? 100 : 45;
+        if (neuralSyncBar) {
+          neuralSyncBar.style.width = `${pct}%`;
+        }
+        // Highlight active mode button
+        modeButtons.forEach((btn) => {
+          const btnIdx = Number(btn.dataset.modeIndex);
+          btn.classList.toggle('active-mode', btnIdx === hud.modeIndex);
+        });
+      };
+
+      // Observe text changes on neuralSync & mode to keep auxiliary UI elements in sync
+      const observer = new MutationObserver(syncUiVisuals);
+      observer.observe(elements.neuralSync, { childList: true, characterData: true, subtree: true });
+      observer.observe(elements.mode, { childList: true, characterData: true, subtree: true });
+
+      // Simulated async asset loader (resolves after 1.6s)
+      const simulateLoadAsset = () => new Promise((resolve) => {
+        setTimeout(() => resolve(true), 1600);
+      });
+
+      // Initialize HUD controller (binds avatar tap automatically)
+      hud.init({
+        loadAsset: simulateLoadAsset,
+        avatarTarget: elements.avatar
+      }).then(syncUiVisuals);
+
+      // Also allow tapping anywhere on the stage outside the avatar to cycle modes
+      elements.stage.addEventListener('pointerup', (e) => {
+        if (!elements.avatar.contains(e.target)) {
+          hud.cycleMode();
+        }
+        triggerTapBurst();
+        syncUiVisuals();
+      }, { passive: true });
+
+      // Quick-select mode buttons
+      modeButtons.forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = Number(btn.dataset.modeIndex);
+          hud.setMode(idx);
+          triggerTapBurst();
+          syncUiVisuals();
+        });
+      });
+
+      // Simulate Asset Reload button: resets assetReady -> false (45%) -> LOADING -> ONLINE (100%)
+      let isReloading = false;
+      reloadAssetBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (isReloading) return;
+        isReloading = true;
+        reloadAssetBtn.style.opacity = '0.5';
+
+        hud.assetReady = false;
+        hud.updateNeuralSync();
+        syncUiVisuals();
+        hud.setAssetState('LOADING');
+        hud.setStatus('SYNCING');
+
+        try {
+          await simulateLoadAsset();
+          hud.assetReady = true;
+          hud.setAssetState('ONLINE');
+          hud.setStatus('READY');
+          hud.updateNeuralSync();
+          syncUiVisuals();
+        } catch {
+          hud.setAssetState('FALLBACK');
+          hud.setStatus('DEGRADED');
+        } finally {
+          isReloading = false;
+          reloadAssetBtn.style.opacity = '1';
+        }
+      });
+
+      // Visual pulse ring on mode cycle
+      function triggerTapBurst() {
+        const ring = document.createElement('div');
+        ring.className = 'tap-burst absolute w-56 h-56 sm:w-72 sm:h-72 rounded-full border-2 border-[var(--hud-primary)] pointer-events-none';
+        tapBurstLayer.appendChild(ring);
+        ring.addEventListener('animationend', () => ring.remove());
+      }
+
+      /* ========================================================================
+         3. REACTIVE PARTICLE & AUDIO-STYLE WAVEFORM CANVAS
+         ======================================================================== */
+      const canvas = document.getElementById('stage-canvas');
+      const ctx = canvas.getContext('2d');
+      let width = 0;
+      let height = 0;
+
+      const particles = Array.from({ length: 42 }, () => ({
+        x: Math.random(),
+        y: Math.random(),
+        vx: (Math.random() - 0.5) * 0.0012,
+        vy: (Math.random() - 0.5) * 0.0012,
+        size: Math.random() * 2 + 1
+      }));
+
+      function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = rect.width;
+        height = rect.height;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+
+      const modeConfigs = {
+        idle: { color: '#00f0ff', speedMult: 0.7, waveAmp: 12, waveFreq: 0.015 },
+        active: { color: '#00ff88', speedMult: 1.8, waveAmp: 24, waveFreq: 0.025 },
+        stealth: { color: '#a855f7', speedMult: 0.35, waveAmp: 6, waveFreq: 0.01 },
+        combat: { color: '#ff2a55', speedMult: 3.4, waveAmp: 38, waveFreq: 0.045 }
+      };
+
+      let phase = 0;
+      function renderCanvas() {
+        const modeKey = document.body.dataset.sukiMode || 'idle';
+        const cfg = modeConfigs[modeKey] || modeConfigs.idle;
+
+        ctx.clearRect(0, 0, width, height);
+
+        // Draw subtle horizontal telemetry waveform behind avatar
+        phase += 0.04 * cfg.speedMult;
+        ctx.save();
+        ctx.strokeStyle = cfg.color;
+        ctx.lineWidth = 1.25;
+        ctx.globalAlpha = modeKey === 'stealth' ? 0.14 : 0.25;
+        ctx.beginPath();
+        const midY = height * 0.5;
+        for (let x = 0; x <= width; x += 6) {
+          const distFromCenter = Math.abs(x - width * 0.5) / (width * 0.5);
+          const envelope = Math.max(0, 1 - distFromCenter * 1.15);
+          const y =
+            midY +
+            Math.sin(x * cfg.waveFreq + phase) * cfg.waveAmp * envelope +
+            Math.cos(x * cfg.waveFreq * 2.1 - phase * 1.4) * (cfg.waveAmp * 0.4) * envelope;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+
+        // Update and draw reactive floating telemetry particles
+        ctx.save();
+        ctx.fillStyle = cfg.color;
+        particles.forEach((p) => {
+          p.x += p.vx * cfg.speedMult;
+          p.y += p.vy * cfg.speedMult;
+
+          if (p.x < 0) p.x = 1;
+          if (p.x > 1) p.x = 0;
+          if (p.y < 0) p.y = 1;
+          if (p.y > 1) p.y = 0;
+
+          const px = p.x * width;
+          const py = p.y * height;
+
+          ctx.globalAlpha = modeKey === 'stealth' ? 0.2 : 0.45;
+          ctx.fillRect(px, py, p.size, p.size);
+        });
+        ctx.restore();
+
+        requestAnimationFrame(renderCanvas);
+      }
+
+      requestAnimationFrame(renderCanvas);
+    });
+  </script>
+</body>
+</html>
