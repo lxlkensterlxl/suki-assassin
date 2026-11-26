@@ -544,4 +544,126 @@
         });
     </script>
 </body>
+function normalizeAndFrameAvatar(object3D, isVrm = false) {
+    object3D.position.set(0, 0, 0);
+    object3D.rotation.set(0, 0, 0);
+
+    if (!isVrm) {
+        object3D.scale.set(0.33, 0.33, 0.33);
+    } else {
+        // Standard VRM models are ~1.4-1.7m tall; keep 1:1 or slightly scaled if huge/tiny
+        const box = new THREE.Box3().setFromObject(object3D);
+        const height = box.max.y - box.min.y;
+        if (height > 0 && (height > 3.5 || height < 0.4)) {
+            const targetHeight = 1.5;
+            const s = targetHeight / height;
+            object3D.scale.setScalar(s);
+        } else {
+            object3D.scale.set(1, 1, 1);
+        }
+    }
+
+    object3D.updateMatrixWorld(true);
+    const finalBox = new THREE.Box3().setFromObject(object3D);
+    const center = finalBox.getCenter(new THREE.Vector3());
+
+    // Place feet near y = 0 and aim orbit camera around upper torso/head
+    object3D.position.y -= finalBox.min.y;
+    if (controls) {
+        controls.target.set(center.x, Math.max(0.75, finalBox.max.y * 0.65), center.z);
+        controls.update();
+    }
+}
+
+function setAvatarModel(object3D, vrmInstance = null) {
+    if (sukiAvatarGroup && scene) scene.remove(sukiAvatarGroup);
+    currentVrm = vrmInstance || null;
+    sukiAvatarGroup = object3D;
+    sukiHairBunsGroup = null;
+    sukiMouth = null;
+
+    if (currentVrm && THREE.VRMUtils?.rotateVRM0) {
+        THREE.VRMUtils.rotateVRM0(currentVrm);
+    }
+
+    normalizeAndFrameAvatar(sukiAvatarGroup, Boolean(currentVrm));
+    scene.add(sukiAvatarGroup);
+    window.sukiStage?.attach(sukiAvatarGroup, currentVrm);
+}
+
+const handleFileUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const statusLoader = document.getElementById('stage-loading');
+    const setLoading = (show, text = '') => {
+        if (!statusLoader) return;
+        statusLoader.style.display = show ? 'flex' : 'none';
+        const label = statusLoader.querySelector('span');
+        if (label && text) label.textContent = text;
+    };
+
+    setLoading(true, `Installing VRM (${file.name})...`);
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const buffer = e.target?.result;
+        if (!buffer) {
+            setLoading(false);
+            appendSukiReply('⚠️ Could not read file bytes.');
+            return;
+        }
+
+        if (typeof THREE === 'undefined' || typeof THREE.GLTFLoader === 'undefined') {
+            setLoading(false);
+            appendSukiReply('⚠️ `THREE.GLTFLoader` failed to load from CDN.');
+            return;
+        }
+
+        const loader = new THREE.GLTFLoader();
+        loader.parse(
+            buffer,
+            './',
+            async (gltf) => {
+                try {
+                    const VRMClass = THREE.VRM || window.VRM;
+                    if (VRMClass?.from) {
+                        const vrm = await VRMClass.from(gltf);
+                        setAvatarModel(vrm.scene, vrm);
+                        appendSukiReply(`🎉 Loaded VRM model "${escapeHtml(file.name)}"!`);
+                    } else {
+                        setAvatarModel(gltf.scene, null);
+                        appendSukiReply(`✨ Loaded 3D model "${escapeHtml(file.name)}" (fallback GLTF mode).`);
+                    }
+                } catch (err) {
+                    console.error('VRM init error:', err);
+                    // Fallback to raw GLTF scene if VRM 0.x metadata rejects a VRM 1.0 file
+                    try {
+                        setAvatarModel(gltf.scene, null);
+                        appendSukiReply(`⚠️ VRM parser warning on "${escapeHtml(file.name)}" (${escapeHtml(err.message || 'incompatible VRM version')}); displayed raw mesh instead.`);
+                    } catch (fallbackErr) {
+                        console.error('Fallback scene error:', fallbackErr);
+                        appendSukiReply(`⚠️ Failed to display "${escapeHtml(file.name)}": ${escapeHtml(err.message || err)}`);
+                    }
+                } finally {
+                    setLoading(false);
+                }
+            },
+            (err) => {
+                console.error('GLTF/VRM parse error:', err);
+                setLoading(false);
+                appendSukiReply(`⚠️ Error parsing "${escapeHtml(file.name)}": ${escapeHtml(err?.message || 'invalid or corrupted VRM/GLB file')}`);
+            }
+        );
+    };
+
+    reader.onerror = () => {
+        setLoading(false);
+        appendSukiReply(`⚠️ FileReader failed while reading "${escapeHtml(file.name)}".`);
+    };
+
+    reader.readAsArrayBuffer(file);
+    event.target.value = '';
+};
+
 </html>
