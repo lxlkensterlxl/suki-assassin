@@ -4,26 +4,31 @@ import { VRMLoaderPlugin, VRMUtils } from 'https://esm.sh/@pixiv/three-vrm@3.1.5
 
 export class SukiVRMController {
   constructor(container) {
+    if (!container) {
+      throw new Error('SukiVRMController requires a valid container element.');
+    }
+
     this.container = container;
     this.vrm = null;
     this.clock = new THREE.Clock();
     this.isSpeaking = false;
     this.blinkTimer = 0;
     this.nextBlink = 2.5;
+    this._rafId = null;
+    this._disposed = false;
+
+    const width = Math.max(1, container.clientWidth);
+    const height = Math.max(1, container.clientHeight);
 
     // Scene & Transparent Renderer (overlays cleanly on cyberpunk HUD)
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(
-      28,
-      container.clientWidth / container.clientHeight,
-      0.1,
-      20
-    );
-    this.camera.position.set(0, 1.32, 1.45);
+    this.camera = new THREE.PerspectiveCamera(28, width / height, 0.1, 20);
+    this.camera.position.set(0, 1.38, 1.55);
+    this.camera.lookAt(0, 1.28, 0);
 
     this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    this.renderer.setSize(container.clientWidth, container.clientHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setSize(width, height);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(this.renderer.domElement);
 
@@ -38,12 +43,23 @@ export class SukiVRMController {
 
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.75));
 
-    window.addEventListener('resize', () => this.onResize());
+    this._handleResize = this.onResize.bind(this);
+    window.addEventListener('resize', this._handleResize);
+
     this.animate = this.animate.bind(this);
-    requestAnimationFrame(this.animate);
+    this._rafId = requestAnimationFrame(this.animate);
+  }
+
+  _disposeCurrentVrm() {
+    if (!this.vrm) return;
+    this.scene.remove(this.vrm.scene);
+    VRMUtils.deepDispose(this.vrm.scene);
+    this.vrm = null;
   }
 
   async load(url = './models/suki.vrm') {
+    if (this._disposed) return null;
+
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
 
@@ -51,22 +67,31 @@ export class SukiVRMController {
       loader.load(
         url,
         (gltf) => {
+          if (this._disposed) return;
+
           const vrm = gltf.userData.vrm;
+          if (!vrm) {
+            reject(new Error(`Loaded asset at "${url}" is not a valid VRM model.`));
+            return;
+          }
+
           VRMUtils.removeUnnecessaryVertices(gltf.scene);
           VRMUtils.removeUnnecessaryJoints(gltf.scene);
 
-          // Rotate VRM 0.x models to face +Z camera
-          VRMUtils.rotateVRM0(vrm);
+          // VRM 3.x rotateVRM0 expects vrm.scene
+          VRMUtils.rotateVRM0(vrm.scene);
 
-          // Natural relaxed A-pose arms instead of stiff T-pose
+          // Relaxed A-pose adjustment (verify signs against your specific model's rest pose)
           const leftArm = vrm.humanoid?.getNormalizedBoneNode('leftUpperArm');
           const rightArm = vrm.humanoid?.getNormalizedBoneNode('rightUpperArm');
-          if (leftArm) leftArm.rotation.z = -1.15;
-          if (rightArm) rightArm.rotation.z = 1.15;
+          if (leftArm) leftArm.rotation.z = 0.85;
+          if (rightArm) rightArm.rotation.z = -0.85;
 
-          if (this.vrm) this.scene.remove(this.vrm.scene);
+          this._disposeCurrentVrm();
           this.vrm = vrm;
           this.scene.add(vrm.scene);
+          vrm.update(0);
+
           resolve(vrm);
         },
         undefined,
@@ -77,35 +102,53 @@ export class SukiVRMController {
 
   // Trigger VRM 1.0 / 0.x mapped expressions: 'happy', 'angry', 'sad', 'relaxed', 'surprised', 'neutral'
   setExpression(name, weight = 1.0) {
-    if (!this.vrm?.expressionManager) return;
+    const manager = this.vrm?.expressionManager;
+    if (!manager) return;
+
     const presets = ['happy', 'angry', 'sad', 'relaxed', 'surprised', 'neutral'];
-    presets.forEach((p) => this.vrm.expressionManager.setValue(p, 0));
-    if (name !== 'neutral') {
-      this.vrm.expressionManager.setValue(name, weight);
+    presets.forEach((p) => manager.setValue(p, 0));
+
+    if (name && name !== 'neutral') {
+      manager.setValue(name, weight);
     }
   }
 
-  // Hook directly into SpeechSynthesisUtterance onstart / onend
+  // Hook directly into SpeechSynthesisUtterance lifecycle events
   bindSpeechUtterance(utterance) {
-    utterance.addEventListener('start', () => { this.isSpeaking = true; });
-    utterance.addEventListener('end', () => {
+    if (!utterance) return;
+
+    const stopSpeaking = () => {
       this.isSpeaking = false;
       this.vrm?.expressionManager?.setValue('aa', 0);
+    };
+
+    utterance.addEventListener('start', () => {
+      this.isSpeaking = true;
     });
+    utterance.addEventListener('end', stopSpeaking);
+    utterance.addEventListener('error', stopSpeaking);
+  }
+
+  stopSpeaking() {
+    this.isSpeaking = false;
+    this.vrm?.expressionManager?.setValue('aa', 0);
   }
 
   onResize() {
-    if (!this.container) return;
-    const w = this.container.clientWidth;
-    const h = this.container.clientHeight;
+    if (!this.container || this._disposed) return;
+    const w = Math.max(1, this.container.clientWidth);
+    const h = Math.max(1, this.container.clientHeight);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h);
   }
 
   animate() {
-    requestAnimationFrame(this.animate);
-    const delta = this.clock.getDelta();
+    if (this._disposed) return;
+    this._rafId = requestAnimationFrame(this.animate);
+
+    // Clamp delta to prevent large jumps after backgrounding/tab switch
+    const delta = Math.min(this.clock.getDelta(), 0.05);
     const elapsed = this.clock.elapsedTime;
 
     if (this.vrm) {
@@ -118,14 +161,16 @@ export class SukiVRMController {
         head.rotation.z = Math.cos(elapsed * 0.7) * 0.02;
       }
 
+      const expressions = this.vrm.expressionManager;
+
       // Natural auto-blink
       this.blinkTimer += delta;
       if (this.blinkTimer >= this.nextBlink) {
         const blinkPhase = (this.blinkTimer - this.nextBlink) / 0.14;
         if (blinkPhase <= 1.0) {
-          this.vrm.expressionManager?.setValue('blink', Math.sin(blinkPhase * Math.PI));
+          expressions?.setValue('blink', Math.sin(blinkPhase * Math.PI));
         } else {
-          this.vrm.expressionManager?.setValue('blink', 0);
+          expressions?.setValue('blink', 0);
           this.blinkTimer = 0;
           this.nextBlink = 2.0 + Math.random() * 3.5;
         }
@@ -134,12 +179,26 @@ export class SukiVRMController {
       // Simple vowel mouth movement while TTS is active
       if (this.isSpeaking) {
         const mouthOpen = (Math.sin(elapsed * 18) + 1) * 0.4;
-        this.vrm.expressionManager?.setValue('aa', mouthOpen);
+        expressions?.setValue('aa', mouthOpen);
       }
 
       this.vrm.update(delta);
     }
 
     this.renderer.render(this.scene, this.camera);
+  }
+
+  dispose() {
+    this._disposed = true;
+    if (this._rafId !== null) {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = null;
+    }
+    window.removeEventListener('resize', this._handleResize);
+    this._disposeCurrentVrm();
+    this.renderer.dispose();
+    if (this.renderer.domElement.parentNode === this.container) {
+      this.container.removeChild(this.renderer.domElement);
+    }
   }
 }
