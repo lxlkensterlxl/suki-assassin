@@ -1,0 +1,145 @@
+import * as THREE from 'https://esm.sh/three@0.169.0';
+import { GLTFLoader } from 'https://esm.sh/three@0.169.0/examples/jsm/loaders/GLTFLoader.js';
+import { VRMLoaderPlugin, VRMUtils } from 'https://esm.sh/@pixiv/three-vrm@3.1.5';
+
+export class SukiVRMController {
+  constructor(container) {
+    this.container = container;
+    this.vrm = null;
+    this.clock = new THREE.Clock();
+    this.isSpeaking = false;
+    this.blinkTimer = 0;
+    this.nextBlink = 2.5;
+
+    // Scene & Transparent Renderer (overlays cleanly on cyberpunk HUD)
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(
+      28,
+      container.clientWidth / container.clientHeight,
+      0.1,
+      20
+    );
+    this.camera.position.set(0, 1.32, 1.45);
+
+    this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    this.renderer.setSize(container.clientWidth, container.clientHeight);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    container.appendChild(this.renderer.domElement);
+
+    // Cyberpunk rim + soft front lighting
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.6);
+    keyLight.position.set(1, 2, 2);
+    this.scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0xd946ef, 1.1); // Neon fuchsia rim
+    rimLight.position.set(-1.5, 1.8, -1.5);
+    this.scene.add(rimLight);
+
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+
+    window.addEventListener('resize', () => this.onResize());
+    this.animate = this.animate.bind(this);
+    requestAnimationFrame(this.animate);
+  }
+
+  async load(url = './models/suki.vrm') {
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMLoaderPlugin(parser));
+
+    return new Promise((resolve, reject) => {
+      loader.load(
+        url,
+        (gltf) => {
+          const vrm = gltf.userData.vrm;
+          VRMUtils.removeUnnecessaryVertices(gltf.scene);
+          VRMUtils.removeUnnecessaryJoints(gltf.scene);
+
+          // Rotate VRM 0.x models to face +Z camera
+          VRMUtils.rotateVRM0(vrm);
+
+          // Natural relaxed A-pose arms instead of stiff T-pose
+          const leftArm = vrm.humanoid?.getNormalizedBoneNode('leftUpperArm');
+          const rightArm = vrm.humanoid?.getNormalizedBoneNode('rightUpperArm');
+          if (leftArm) leftArm.rotation.z = -1.15;
+          if (rightArm) rightArm.rotation.z = 1.15;
+
+          if (this.vrm) this.scene.remove(this.vrm.scene);
+          this.vrm = vrm;
+          this.scene.add(vrm.scene);
+          resolve(vrm);
+        },
+        undefined,
+        (err) => reject(err)
+      );
+    });
+  }
+
+  // Trigger VRM 1.0 / 0.x mapped expressions: 'happy', 'angry', 'sad', 'relaxed', 'surprised', 'neutral'
+  setExpression(name, weight = 1.0) {
+    if (!this.vrm?.expressionManager) return;
+    const presets = ['happy', 'angry', 'sad', 'relaxed', 'surprised', 'neutral'];
+    presets.forEach((p) => this.vrm.expressionManager.setValue(p, 0));
+    if (name !== 'neutral') {
+      this.vrm.expressionManager.setValue(name, weight);
+    }
+  }
+
+  // Hook directly into SpeechSynthesisUtterance onstart / onend
+  bindSpeechUtterance(utterance) {
+    utterance.addEventListener('start', () => { this.isSpeaking = true; });
+    utterance.addEventListener('end', () => {
+      this.isSpeaking = false;
+      this.vrm?.expressionManager?.setValue('aa', 0);
+    });
+  }
+
+  onResize() {
+    if (!this.container) return;
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(w, h);
+  }
+
+  animate() {
+    requestAnimationFrame(this.animate);
+    const delta = this.clock.getDelta();
+    const elapsed = this.clock.elapsedTime;
+
+    if (this.vrm) {
+      // Subtle idle breathing & head sway
+      const chest = this.vrm.humanoid?.getNormalizedBoneNode('chest');
+      const head = this.vrm.humanoid?.getNormalizedBoneNode('head');
+      if (chest) chest.rotation.x = Math.sin(elapsed * 2.0) * 0.025;
+      if (head) {
+        head.rotation.y = Math.sin(elapsed * 0.9) * 0.06;
+        head.rotation.z = Math.cos(elapsed * 0.7) * 0.02;
+      }
+
+      // Natural auto-blink
+      this.blinkTimer += delta;
+      if (this.blinkTimer >= this.nextBlink) {
+        const blinkPhase = (this.blinkTimer - this.nextBlink) / 0.14;
+        if (blinkPhase <= 1.0) {
+          this.vrm.expressionManager?.setValue('blink', Math.sin(blinkPhase * Math.PI));
+        } else {
+          this.vrm.expressionManager?.setValue('blink', 0);
+          this.blinkTimer = 0;
+          this.nextBlink = 2.0 + Math.random() * 3.5;
+        }
+      }
+
+      // Simple vowel mouth movement while TTS is active
+      if (this.isSpeaking) {
+        const mouthOpen = (Math.sin(elapsed * 18) + 1) * 0.4;
+        this.vrm.expressionManager?.setValue('aa', mouthOpen);
+      }
+
+      this.vrm.update(delta);
+    }
+
+    this.renderer.render(this.scene, this.camera);
+  }
+}
