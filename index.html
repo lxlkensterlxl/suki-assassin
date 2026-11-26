@@ -1,1126 +1,475 @@
-<!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-950 text-slate-100">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>SukiBot // CYBER HUD & ANIME AVATAR ENGINE</title>
-    
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- FontAwesome Icons CDN -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-    
-    <!-- WebLLM Engine CDN Module Import -->
-    <script type="module">
-        try {
-            const webLLM = await import("https://esm.run/@mlc-ai/web-llm");
-            window.webLLM = webLLM;
-            window.dispatchEvent(new CustomEvent('mlc-loaded'));
-        } catch (err) {
-            console.warn("WebLLM module failed to load:", err);
-        }
-    </script>
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        cyberDark: '#05030a',
-                        cyberPanel: '#0d0718',
-                        cyberCard: '#140c26',
-                        cyberBorder: '#2a164d',
-                        cyberPurple: '#a855f7',
-                        cyberPink: '#ec4899',
-                        cyberCyan: '#06b6d4',
-                        cyberNeonPink: '#ff2a8d',
-                        cyberNeonCyan: '#00f0ff',
-                        cyberNeonPurple: '#bf5af2',
-                        cyberYellow: '#ffe600'
-                    },
-                    fontFamily: {
-                        orbitron: ['Orbitron', 'sans-serif'],
-                        rajdhani: ['Rajdhani', 'sans-serif'],
-                        mono: ['Share Tech Mono', 'monospace'],
-                    }
-                }
+(() => {
+  'use strict';
+
+  const STORAGE_KEY = 'sukibot_learned_rules_v2';
+
+  const $ = (id) => document.getElementById(id);
+
+  const editor = $('codeEditor');
+  const output = $('consoleOutput');
+  const findings = $('findingsList');
+  const katana = $('katanaGroup');
+  const slashArc = $('slashArc');
+  const status = $('sukibotStatus');
+  const quote = $('sukibotQuote');
+  const execTime = $('execTime');
+  const badge = $('evolutionBadge');
+
+  if (!editor || !output || !findings) {
+    console.error('Sukibot initialization failed: required elements missing.');
+    return;
+  }
+
+  let activeRun = null;
+  let runCounter = 0;
+  let patchesApplied = loadLearnedCount();
+
+  // ------------------------------------------
+  // PERSISTENT PATCH COUNTER
+  // ------------------------------------------
+
+  function loadLearnedCount() {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem(STORAGE_KEY) || '{}'
+      );
+
+      return Math.max(0, Number(saved.patchesApplied) || 0);
+    } catch {
+      return 0;
+    }
+  }
+
+  function saveLearnedCount() {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          patchesApplied,
+          updatedAt: Date.now()
+        })
+      );
+    } catch (error) {
+      console.warn('Sukibot: browser storage unavailable.');
+    }
+
+    badge.textContent = `Patches Applied: ${patchesApplied}`;
+  }
+
+  // ------------------------------------------
+  // DIAGNOSTIC RULES
+  // ------------------------------------------
+
+  const rules = [
+    {
+      id: 'strict-equality',
+      label: 'Possible loose equality (== or !=). Prefer strict equality.',
+      test: code => /(^|[^=!<>])={2}([^=]|$)|!={1}([^=]|$)/.test(code),
+      fix: code => code
+        .replace(/(^|[^=!<>])==(?!=)/g, '$1===')
+        .replace(/!=(?!=)/g, '!==')
+    },
+    {
+      id: 'no-var',
+      label: 'Use let or const instead of var.',
+      test: code => /\bvar\s+/.test(code),
+      fix: code => code.replace(/\bvar\s+/g, 'let ')
+    },
+    {
+      id: 'json-parse',
+      label: 'JSON.parse can throw. Validate input and handle parsing errors.',
+      test: code => /JSON\.parse\s*\(/.test(code),
+      advisory: true
+    },
+    {
+      id: 'debugger',
+      label: 'Remove debugger statements before production.',
+      test: code => /\bdebugger\s*;?/.test(code),
+      fix: code => code.replace(/\bdebugger\s*;?/g, '')
+    }
+  ];
+
+  // ------------------------------------------
+  // FINDINGS
+  // ------------------------------------------
+
+  function analyzeCode(code) {
+    const detected = rules.filter(rule => rule.test(code));
+
+    findings.replaceChildren();
+
+    if (!detected.length) {
+      const li = document.createElement('li');
+      li.className = 'text-[#39ff14] p-2';
+      li.textContent = '✓ No known issues detected. Blade clean!';
+      findings.appendChild(li);
+      return detected;
+    }
+
+    detected.forEach(rule => {
+      const li = document.createElement('li');
+
+      li.className =
+        'p-2 rounded-lg bg-[#190f29] border border-[#b026ff]/30 text-purple-200';
+
+      li.textContent =
+        (rule.advisory ? '⚠ ' : '◆ ') + rule.label;
+
+      findings.appendChild(li);
+    });
+
+    return detected;
+  }
+
+  // ------------------------------------------
+  // ANIME SLASH ANIMATION
+  // ------------------------------------------
+
+  function triggerSlash() {
+    if (!katana || !slashArc) return;
+
+    katana.classList.remove('katana-slashing');
+    slashArc.classList.remove('slash-arc-active');
+
+    void katana.offsetWidth;
+
+    katana.classList.add('katana-slashing');
+    slashArc.classList.add('slash-arc-active');
+  }
+
+  // ------------------------------------------
+  // SAFE OUTPUT FORMATTING
+  // ------------------------------------------
+
+  function formatValue(value) {
+    if (typeof value === 'string') return value;
+
+    try {
+      const result = JSON.stringify(value);
+      return result === undefined ? String(value) : result;
+    } catch {
+      return '[Unserializable value]';
+    }
+  }
+
+  function appendOutput(type, message, runId) {
+    if (runId !== runCounter) return;
+
+    const prefixes = {
+      log: '[LOG] ',
+      warn: '[WRN] ',
+      error: '[ERR] ',
+      info: '[INFO] '
+    };
+
+    const line = document.createElement('div');
+
+    line.textContent =
+      (prefixes[type] || '[LOG] ') + message;
+
+    line.className =
+      type === 'error' ? 'text-rose-400' :
+      type === 'warn' ? 'text-yellow-300' :
+      'text-purple-100';
+
+    output.appendChild(line);
+    output.scrollTop = output.scrollHeight;
+  }
+
+  // ------------------------------------------
+  // ISOLATED JAVASCRIPT RUNNER
+  // ------------------------------------------
+
+  function runInSandbox(code) {
+    if (activeRun) {
+      activeRun.cleanup();
+    }
+
+    const runId = ++runCounter;
+    const started = performance.now();
+
+    output.replaceChildren();
+
+    status.textContent = 'SLASHING';
+    status.className = 'text-[#39ff14]';
+
+    quote.textContent =
+      '"Stand back! Sukibot is entering the code dojo!"';
+
+    triggerSlash();
+
+    const iframe = document.createElement('iframe');
+
+    iframe.setAttribute('sandbox', 'allow-scripts');
+    iframe.setAttribute('aria-hidden', 'true');
+
+    iframe.style.display = 'none';
+
+    let finished = false;
+    let port = null;
+    let timeout = null;
+
+    const channel = new MessageChannel();
+
+    function cleanup() {
+      if (finished) return;
+
+      finished = true;
+
+      clearTimeout(timeout);
+
+      if (port) {
+        port.close();
+        port = null;
+      }
+
+      channel.port1.close();
+
+      iframe.remove();
+
+      if (activeRun?.runId === runId) {
+        activeRun = null;
+      }
+    }
+
+    function finish(timedOut = false) {
+      if (finished) return;
+
+      if (timedOut) {
+        appendOutput(
+          'error',
+          'Execution timed out. Infinite loops or long-running code may be responsible.',
+          runId
+        );
+
+        status.textContent = 'TIMEOUT';
+        status.className = 'text-rose-400';
+
+        quote.textContent =
+          '"That code took too long! Even a ninja needs a break."';
+      } else if (status.textContent === 'SLASHING') {
+        status.textContent = 'CLEAN RUN';
+        status.className = 'text-[#39ff14]';
+
+        quote.textContent =
+          '"Clean slice! Your code is looking sharp, senpai."';
+      }
+
+      if (!output.textContent.trim()) {
+        output.textContent = '(No console output)';
+      }
+
+      execTime.textContent =
+        `${(performance.now() - started).toFixed(1)} ms`;
+
+      cleanup();
+    }
+
+    channel.port1.onmessage = event => {
+      if (runId !== runCounter || finished) return;
+
+      const data = event.data;
+
+      if (!data || typeof data !== 'object') return;
+
+      if (data.type === 'done') {
+        finish(false);
+        return;
+      }
+
+      if (data.type === 'error') {
+        status.textContent = 'BUG FOUND';
+        status.className = 'text-rose-400';
+
+        quote.textContent =
+          '"A bug detected! Let me help you sharpen that code."';
+      }
+
+      if (['log', 'warn', 'error', 'info'].includes(data.type)) {
+        appendOutput(data.type, String(data.message), runId);
+      }
+    };
+
+    const bootstrap = `
+      (() => {
+        'use strict';
+
+        const send = (type, message = '') => {
+          try {
+            parentPort.postMessage({ type, message: String(message) });
+          } catch {}
+        };
+
+        let parentPort;
+
+        window.addEventListener('message', async function initialize(event) {
+          if (!event.ports || !event.ports[0]) return;
+
+          window.removeEventListener('message', initialize);
+
+          parentPort = event.ports[0];
+
+          const stringify = value => {
+            if (typeof value === 'string') return value;
+
+            try {
+              return JSON.stringify(value);
+            } catch {
+              return '[Unserializable value]';
             }
-        }
-    </script>
-    <style>
-        * {
-            -webkit-tap-highlight-color: transparent;
-            box-sizing: border-box;
-        }
-        body {
-            background-color: #030207;
-            color: #e2e8f0;
-            font-family: 'Rajdhani', sans-serif;
-            user-select: none;
-            overflow-x: hidden;
-        }
+          };
 
-        ::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(13, 7, 24, 0.8);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #ff2a8d;
-            border-radius: 4px;
-        }
+          for (const type of ['log', 'warn', 'error', 'info']) {
+            console[type] = (...args) => {
+              send(type, args.map(stringify).join(' '));
+            };
+          }
 
-        .hud-card {
-            background: rgba(16, 9, 32, 0.85);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border: 1px solid rgba(191, 90, 242, 0.35);
-            box-shadow: 0 0 15px rgba(0,0,0,0.5);
-        }
+          window.onerror = (message, source, line) => {
+            send('error', 'Uncaught error at line ' + line + ': ' + message);
+            return true;
+          };
 
-        .scanlines {
-            background: linear-gradient(
-                to bottom,
-                rgba(255,255,255,0),
-                rgba(255,255,255,0) 50%,
-                rgba(0, 0, 0, 0.5) 50%,
-                rgba(0, 0, 0, 0.5)
+          window.onunhandledrejection = event => {
+            send('error', 'Unhandled promise rejection: ' + stringify(event.reason));
+          };
+
+          try {
+            const userCode = ${JSON.stringify(code)};
+
+            const execute = new Function(
+              'console',
+              '"use strict"; return (async function() {\\n' +
+              userCode +
+              '\\n}).call(undefined);'
             );
-            background-size: 100% 4px;
-        }
 
-        .matrix-bg {
-            background-image: radial-gradient(rgba(0, 240, 255, 0.12) 1px, transparent 0);
-            background-size: 16px 16px;
-        }
+            await execute(console);
 
-        @keyframes pulseGlow {
-            0% { box-shadow: 0 0 0 0 rgba(255, 42, 141, 0.8); }
-            70% { box-shadow: 0 0 0 14px rgba(255, 42, 141, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 42, 141, 0); }
-        }
-        .mic-listening {
-            animation: pulseGlow 1.4s infinite;
-            background-color: #ff2a8d !important;
-            color: #ffffff !important;
-            border-color: #00f0ff !important;
-        }
+          } catch (error) {
+            send('error', error.name + ': ' + error.message);
+          }
 
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-
-        .cyber-corner {
-            position: relative;
-        }
-        .cyber-corner::before {
-            content: '';
-            position: absolute;
-            top: -1px;
-            left: -1px;
-            width: 8px;
-            height: 8px;
-            border-top: 2px solid #00f0ff;
-            border-left: 2px solid #00f0ff;
-            z-index: 25;
-        }
-        .cyber-corner::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            right: -1px;
-            width: 8px;
-            height: 8px;
-            border-bottom: 2px solid #ff2a8d;
-            border-right: 2px solid #ff2a8d;
-            z-index: 25;
-        }
-
-        .equalizer-bar {
-            height: 20%;
-            transition: height 0.08s ease-out;
-        }
-        
-        .speaking-active .equalizer-bar {
-            animation: bounce 0.35s ease-in-out infinite alternate;
-        }
-        .speaking-active .equalizer-bar:nth-child(2) { animation-delay: 0.08s; }
-        .speaking-active .equalizer-bar:nth-child(3) { animation-delay: 0.16s; }
-        .speaking-active .equalizer-bar:nth-child(4) { animation-delay: 0.24s; }
-        .speaking-active .equalizer-bar:nth-child(5) { animation-delay: 0.12s; }
-
-        @keyframes bounce {
-            0% { height: 15%; }
-            100% { height: 100%; }
-        }
-
-        @keyframes spinSlow {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        .arcane-spin {
-            animation: spinSlow 18s linear infinite;
-        }
-
-        .glitch-text {
-            text-shadow: 2px 0 #00f0ff, -2px 0 #ff2a8d;
-        }
-    </style>
-</head>
-<body class="min-h-dvh flex items-center justify-center p-0 sm:p-4 bg-slate-950">
-
-    <!-- Screen Layout Wrapper -->
-    <div id="app-viewport" class="relative w-full max-w-[440px] sm:max-w-[480px] h-[100dvh] sm:h-[920px] bg-black sm:rounded-[48px] p-0 sm:p-3 shadow-[0_0_70px_rgba(255,42,141,0.3)] border-0 sm:border-4 border-slate-900 flex flex-col overflow-hidden transition-all duration-300">
-        
-        <!-- Dynamic Island / Top Notch -->
-        <div class="hidden sm:flex absolute top-3 left-1/2 -translate-x-1/2 w-36 h-6 bg-black rounded-full z-50 items-center justify-between px-3 border border-slate-800 shadow-md">
-            <div class="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center">
-                <div id="notch-dot" class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></div>
-            </div>
-            <span class="font-mono text-[9px] text-pink-400 tracking-tighter">SUKI_CORE v2.1</span>
-            <div id="notch-speaker" class="w-2 h-1 rounded-full bg-purple-600/80"></div>
-        </div>
-
-        <!-- Inner Cyber Container -->
-        <div class="relative w-full h-full bg-[#06030c] rounded-none sm:rounded-[38px] flex flex-col overflow-hidden border-0 sm:border border-pink-500/30">
-            
-            <!-- Scanlines & Matrix Overlays -->
-            <div id="scanlines-layer" class="absolute inset-0 scanlines pointer-events-none z-40 opacity-25"></div>
-            <div id="matrix-layer" class="absolute inset-0 matrix-bg pointer-events-none z-10"></div>
-
-            <!-- Header HUD -->
-            <header class="relative z-30 pt-[max(1rem,env(safe-area-inset-top))] sm:pt-8 px-4 pb-2 border-b border-purple-500/30 bg-cyberDark/90 flex justify-between items-center backdrop-blur-md">
-                <div>
-                    <div class="flex items-center space-x-2">
-                        <h1 class="font-orbitron font-extrabold text-xs sm:text-sm tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-pink-500 to-purple-400 glitch-text">
-                            SUKI COMMS &amp; DIAGNOSTICS
-                        </h1>
-                        <span id="engine-badge" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 border border-cyan-500/50 text-cyan-300">DEMO</span>
-                    </div>
-                    <p class="font-mono text-[10px] text-cyan-400/80 flex items-center gap-1">
-                        STATUS: <span id="status-text" class="text-pink-400 font-bold">READY</span>
-                    </p>
-                </div>
-                
-                <div class="flex items-center space-x-1.5">
-                    <!-- Equalizer (5 bars) -->
-                    <div id="equalizer" class="flex items-end space-x-0.5 h-4 w-8 px-1 border border-purple-500/30 rounded bg-cyberCard">
-                        <div class="equalizer-bar w-1 bg-cyan-400 rounded-full"></div>
-                        <div class="equalizer-bar w-1 bg-pink-500 rounded-full"></div>
-                        <div class="equalizer-bar w-1 bg-purple-500 rounded-full"></div>
-                        <div class="equalizer-bar w-1 bg-cyan-400 rounded-full"></div>
-                        <div class="equalizer-bar w-1 bg-pink-500 rounded-full"></div>
-                    </div>
-                    
-                    <!-- HUD Controls Buttons -->
-                    <button id="toggle-sound-btn" title="Toggle Sound & Voice" class="w-7 h-7 rounded bg-cyberCard border border-purple-500/40 text-cyan-400 hover:text-pink-400 text-xs flex items-center justify-center transition">
-                        <i id="sound-icon" class="fa-solid fa-volume-high"></i>
-                    </button>
-                    <button id="toggle-scanlines-btn" title="Toggle Scanlines" class="w-7 h-7 rounded bg-cyberCard border border-purple-500/40 text-cyan-400 hover:text-pink-400 text-xs flex items-center justify-center transition">
-                        <i class="fa-solid fa-tv"></i>
-                    </button>
-                    <button id="expand-frame-btn" title="Expand View" class="hidden sm:flex w-7 h-7 rounded bg-cyberCard border border-purple-500/40 text-cyan-400 hover:text-pink-400 text-xs items-center justify-center transition">
-                        <i class="fa-solid fa-expand"></i>
-                    </button>
-                </div>
-            </header>
-
-            <!-- Model Selection Bar / Download HUD -->
-            <section class="relative z-30 px-3 py-1.5 bg-cyberPanel/90 border-b border-purple-500/20 flex flex-col space-y-1 font-mono text-[11px]">
-                <div class="flex justify-between items-center gap-2">
-                    <label for="model-select" class="text-pink-400 text-[10px] shrink-0">AI ENGINE:</label>
-                    <select id="model-select" class="w-full max-w-[260px] bg-cyberDark border border-cyan-500/40 text-cyan-300 text-[10px] rounded px-1.5 py-0.5 focus:outline-none">
-                        <option value="simulated">⚡ FAST DEMO SIMULATOR (No VRAM)</option>
-                        <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen 2.5 0.5B (Fast WebGPU)</option>
-                        <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 1B (High Quality WebGPU)</option>
-                        <option value="SmolLM2-360M-Instruct-q4f16_1-MLC">SmolLM2 360M (Ultra Lightweight)</option>
-                    </select>
-                </div>
-                
-                <!-- Model Download Bar -->
-                <div id="download-progress-container" class="hidden flex-col space-y-0.5">
-                    <div class="flex justify-between text-[9px] text-cyan-300">
-                        <span id="progress-text" class="truncate pr-2">Initializing Model Engine...</span>
-                        <span id="progress-percent" class="shrink-0">0%</span>
-                    </div>
-                    <div class="w-full h-1.5 bg-cyberDark rounded-full overflow-hidden border border-cyan-500/30">
-                        <div id="progress-bar" class="h-full bg-gradient-to-r from-cyan-400 to-pink-500 w-0 transition-all duration-200"></div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Interactive Full-Body Anime Cyber Avatar Canvas Section -->
-            <div class="relative w-full h-[330px] sm:h-[370px] bg-[#070412] border-b border-purple-500/40 flex items-center justify-center overflow-hidden shrink-0">
-                <!-- Radial Neon Backdrop Glow -->
-                <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.22)_0%,rgba(6,3,12,0.95)_75%)] pointer-events-none"></div>
-
-                <canvas id="avatar-canvas" class="w-full h-full z-20 cursor-pointer block"></canvas>
-                
-                <!-- Left HUD Overlay: OCCULT SYSTEMS & TELEMETRY -->
-                <div class="absolute top-2 left-2 z-20 font-mono text-[8.5px] text-cyan-400/90 pointer-events-none space-y-1.5 max-w-[125px]">
-                    <div class="bg-black/65 backdrop-blur-sm p-1.5 rounded border border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.2)]">
-                        <div class="text-purple-300 font-bold tracking-wider border-b border-purple-500/30 pb-0.5 mb-1">OCCULT SYSTEMS</div>
-                        <div>FPS: <span id="fps-counter" class="text-pink-400">60</span></div>
-                        <div>NEURAL SYNC: <span id="neural-sync" class="text-cyan-300">100%</span></div>
-                        <div>ORB FLUX: <span id="orb-flux" class="text-purple-400">STABLE</span></div>
-                    </div>
-
-                    <!-- Arcane Sigil Emblem -->
-                    <div class="w-14 h-14 rounded-full border border-pink-500/30 bg-purple-950/20 flex items-center justify-center relative opacity-80">
-                        <div class="w-11 h-11 rounded-full border border-dashed border-cyan-400/50 arcane-spin flex items-center justify-center">
-                            <i class="fa-solid fa-eye text-pink-400/80 text-xs"></i>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right HUD Overlay: VITALS & INVENTORY -->
-                <div class="absolute top-2 right-2 z-20 font-mono text-[8.5px] text-pink-400/90 pointer-events-none bg-black/65 backdrop-blur-sm p-1.5 rounded border border-cyan-500/40 text-right space-y-0.5 max-w-[130px] shadow-[0_0_10px_rgba(0,240,255,0.15)]">
-                    <div class="text-cyan-300 font-bold tracking-wider border-b border-cyan-500/30 pb-0.5 mb-1">VITALS &amp; CORE</div>
-                    <div>STATE: <span id="avatar-state" class="text-cyan-300 font-bold">IDLE</span></div>
-                    <div>HEALTH: <span class="text-green-400">100%</span></div>
-                    <div>MANA CORE: <span class="text-purple-300">98.4%</span></div>
-                    <div>KATANA: <span class="text-pink-400">CHARGED</span></div>
-                    <div>RENDER: <span id="render-mode" class="text-yellow-300">SPRITE-2D</span></div>
-                </div>
-
-                <!-- Bottom Energy Core Bar -->
-                <div class="absolute bottom-1.5 left-2 z-20 font-mono text-[8.5px] bg-black/70 px-2 py-0.5 rounded border border-purple-500/40 flex items-center gap-1.5 pointer-events-none">
-                    <span class="text-purple-300">ENERGY CORE</span>
-                    <div class="w-14 h-1.5 bg-slate-900 rounded-full overflow-hidden border border-pink-500/40">
-                        <div class="h-full w-[92%] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-400 animate-pulse"></div>
-                    </div>
-                </div>
-
-                <div class="absolute bottom-1.5 right-2 z-20 font-mono text-[8.5px] text-cyan-300/80 bg-black/60 px-1.5 py-0.5 rounded border border-cyan-500/20 pointer-events-none">
-                    TAP SUKI TO CYCLE MODE
-                </div>
-            </div>
-
-            <!-- Chat Output Container -->
-            <main id="chat-box" class="relative z-30 flex-1 overflow-y-auto p-3 space-y-2.5 font-rajdhani text-sm no-scrollbar select-text">
-                <div class="hud-card p-3 rounded-lg cyber-corner">
-                    <p class="font-orbitron text-xs text-cyan-400 mb-1 flex items-center gap-2">
-                        <i class="fa-solid fa-terminal text-pink-500"></i> SYSTEM INITIALIZED
-                    </p>
-                    <p class="text-slate-300 text-xs leading-relaxed">
-                        Konnichiwa! I am <strong class="text-pink-400">SukiBot</strong>. Occult systems and cyber-katana diagnostics are online. Speak or transmit a neural prompt below!
-                    </p>
-                </div>
-            </main>
-
-            <!-- Quick Action Prompt Chips -->
-            <div id="quick-chips" class="relative z-30 px-3 py-1.5 bg-cyberDark/80 border-t border-purple-500/20 flex gap-1.5 overflow-x-auto no-scrollbar font-mono text-[10px] shrink-0">
-                <button type="button" class="chip-btn px-2 py-1 rounded bg-cyberCard border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/20 whitespace-nowrap transition">
-                    ⚡ Neural Status
-                </button>
-                <button type="button" class="chip-btn px-2 py-1 rounded bg-cyberCard border border-pink-500/40 text-pink-300 hover:bg-pink-500/20 whitespace-nowrap transition">
-                    🔮 Occult Diagnostics
-                </button>
-                <button type="button" class="chip-btn px-2 py-1 rounded bg-cyberCard border border-purple-500/40 text-purple-300 hover:bg-purple-500/20 whitespace-nowrap transition">
-                    💻 Write Python Script
-                </button>
-                <button type="button" class="chip-btn px-2 py-1 rounded bg-cyberCard border border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/20 whitespace-nowrap transition">
-                    🌌 Cyber City Lore
-                </button>
-            </div>
-
-            <!-- Control & Input Dock -->
-            <footer class="relative z-30 p-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] bg-cyberPanel/90 border-t border-purple-500/30 space-y-2 shrink-0">
-                <form id="chat-form" class="flex items-center space-x-2">
-                    <button type="button" id="mic-btn" title="Voice Input" class="w-9 h-9 rounded-lg bg-cyberCard border border-pink-500/40 text-pink-400 flex items-center justify-center hover:bg-pink-500/20 transition-all shrink-0">
-                        <i class="fa-solid fa-microphone"></i>
-                    </button>
-
-                    <input type="text" id="user-input" autocomplete="off" placeholder="Type neural prompt..." class="flex-1 bg-cyberCard border border-purple-500/40 rounded-lg px-3 py-2 text-xs font-mono text-cyan-300 focus:outline-none focus:border-cyan-400 shadow-inner">
-
-                    <button type="submit" id="send-btn" title="Send Message" class="w-9 h-9 rounded-lg bg-gradient-to-r from-pink-500 to-purple-600 text-white flex items-center justify-center font-bold hover:brightness-110 transition shrink-0 disabled:opacity-40">
-                        <i class="fa-solid fa-paper-plane"></i>
-                    </button>
-                </form>
-
-                <!-- Actions Toolbar -->
-                <div class="flex justify-between items-center text-[10px] font-mono text-slate-400 px-1">
-                    <div class="flex space-x-3">
-                        <button type="button" id="clear-chat-btn" class="hover:text-pink-400 transition"><i class="fa-solid fa-trash-can"></i> CLEAR</button>
-                        <button type="button" id="export-chat-btn" class="hover:text-cyan-400 transition"><i class="fa-solid fa-file-export"></i> EXPORT LOG</button>
-                    </div>
-                    <span id="char-count" class="text-purple-400/80">0 CHARS</span>
-                </div>
-            </footer>
-        </div>
-    </div>
-
-    <!-- Main Logic Script -->
-    <script>
-        // --- Web Audio Synthesizer Sound Engine (iOS Safari Safe) ---
-        class SoundEngine {
-            constructor() {
-                this.ctx = null;
-                this.enabled = true;
-            }
-
-            init() {
-                if (!this.ctx) {
-                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                    if (AudioCtx) this.ctx = new AudioCtx();
-                }
-                if (this.ctx && this.ctx.state === 'suspended') {
-                    this.ctx.resume().catch(() => {});
-                }
-            }
-
-            playBeep(freq = 600, duration = 0.05, type = 'sine') {
-                if (!this.enabled) return;
-                this.init();
-                if (!this.ctx) return;
-
-                try {
-                    const osc = this.ctx.createOscillator();
-                    const gain = this.ctx.createGain();
-                    osc.type = type;
-                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-                    gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
-                    osc.connect(gain);
-                    gain.connect(this.ctx.destination);
-                    osc.start();
-                    osc.stop(this.ctx.currentTime + duration);
-                } catch (e) {}
-            }
-
-            playClick() { this.playBeep(800, 0.04, 'triangle'); }
-            playReceive() { this.playBeep(1200, 0.08, 'sine'); }
-            playError() { this.playBeep(250, 0.2, 'sawtooth'); }
-        }
-
-        const sounds = new SoundEngine();
-
-        // --- Custom Image + Procedural Fallback 2D Cyber Anime Avatar Engine ---
-        class CyberAvatarEngine {
-            constructor(canvasId, imageSrc) {
-                this.canvas = document.getElementById(canvasId);
-                this.ctx = this.canvas.getContext('2d');
-                this.state = 'IDLE'; // IDLE, TALKING, LISTENING, THINKING
-                this.logicalWidth = 360;
-                this.logicalHeight = 350;
-                
-                // Load image_2f366b.jpg with Resilient Procedural Fallback
-                this.avatarImg = new Image();
-                this.imgLoaded = false;
-                this.imgFailed = false;
-
-                this.avatarImg.onload = () => {
-                    if (this.avatarImg.naturalWidth > 0) {
-                        this.imgLoaded = true;
-                        const badge = document.getElementById('render-mode');
-                        if (badge) badge.innerText = 'SPRITE-2D';
-                    } else {
-                        this.imgFailed = true;
-                    }
-                };
-                this.avatarImg.onerror = () => {
-                    this.imgFailed = true;
-                    const badge = document.getElementById('render-mode');
-                    if (badge) badge.innerText = 'HOLO-SYNTH';
-                };
-                this.avatarImg.src = imageSrc;
-
-                // Motion & Eye Tracking State
-                this.mouthOpen = 0;
-                this.eyeBlink = 0;
-                this.blinkTimer = 0;
-                this.pointerX = 0;
-                this.pointerY = 0;
-                this.targetPointerX = 0;
-                this.targetPointerY = 0;
-                this.particles = [];
-                this.tiltAngle = 0;
-                
-                this.resize();
-                window.addEventListener('resize', () => this.resize());
-
-                // Track pointer/touch
-                window.addEventListener('mousemove', (e) => this.updatePointer(e));
-                window.addEventListener('touchmove', (e) => {
-                    if (e.touches[0]) this.updatePointer(e.touches[0]);
-                }, { passive: true });
-
-                this.canvas.addEventListener('click', () => {
-                    sounds.playClick();
-                    const states = ['IDLE', 'TALKING', 'LISTENING', 'THINKING'];
-                    const nextIndex = (states.indexOf(this.state) + 1) % states.length;
-                    this.setState(states[nextIndex]);
-                });
-
-                this.initParticles();
-            }
-
-            resize() {
-                const rect = this.canvas.parentElement.getBoundingClientRect();
-                const dpr = Math.min(window.devicePixelRatio || 1, 2);
-                this.logicalWidth = rect.width || 360;
-                this.logicalHeight = rect.height || 350;
-                this.canvas.width = this.logicalWidth * dpr;
-                this.canvas.height = this.logicalHeight * dpr;
-                this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            }
-
-            updatePointer(e) {
-                const rect = this.canvas.getBoundingClientRect();
-                if (!rect.width || !rect.height) return;
-                this.targetPointerX = Math.max(-1, Math.min(1, (e.clientX - rect.left - rect.width / 2) / (rect.width / 2)));
-                this.targetPointerY = Math.max(-1, Math.min(1, (e.clientY - rect.top - rect.height / 2) / (rect.height / 2)));
-            }
-
-            initParticles() {
-                this.particles = [];
-                for (let i = 0; i < 45; i++) {
-                    this.particles.push({
-                        x: Math.random() * this.logicalWidth,
-                        y: Math.random() * this.logicalHeight,
-                        radius: Math.random() * 2 + 0.6,
-                        speedX: (Math.random() - 0.5) * 0.85,
-                        speedY: -0.25 - Math.random() * 0.6, // Upward cyber embers/mana motes
-                        color: Math.random() > 0.45 ? '#a855f7' : (Math.random() > 0.5 ? '#00f0ff' : '#ff2a8d')
-                    });
-                }
-            }
-
-            setState(newState) {
-                this.state = newState;
-                const el = document.getElementById('avatar-state');
-                if (el) el.innerText = newState;
-                const orbEl = document.getElementById('orb-flux');
-                if (orbEl) {
-                    orbEl.innerText = newState === 'THINKING' ? 'SURGING' : (newState === 'TALKING' ? 'RESONATING' : 'STABLE');
-                }
-            }
-
-            drawParticles() {
-                this.particles.forEach(p => {
-                    const mult = this.state === 'THINKING' ? 2.4 : (this.state === 'TALKING' ? 1.5 : 1);
-                    p.x += p.speedX * mult;
-                    p.y += p.speedY * mult;
-
-                    if (p.x < 0) p.x = this.logicalWidth;
-                    if (p.x > this.logicalWidth) p.x = 0;
-                    if (p.y < 0) p.y = this.logicalHeight;
-                    if (p.y > this.logicalHeight) p.y = 0;
-
-                    this.ctx.beginPath();
-                    this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                    this.ctx.fillStyle = p.color;
-                    this.ctx.shadowBlur = 7;
-                    this.ctx.shadowColor = p.color;
-                    this.ctx.fill();
-                    this.ctx.shadowBlur = 0;
-                });
-            }
-
-            drawProceduralCyberAvatar(ctx) {
-                const stateColor = this.state === 'THINKING' ? '#ffe600' : (this.state === 'LISTENING' ? '#ff2a8d' : '#00f0ff');
-
-                ctx.fillStyle = '#120824';
-                ctx.strokeStyle = '#bf5af2';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(-58, -55);
-                ctx.lineTo(-74, 65);
-                ctx.lineTo(-35, 50);
-                ctx.lineTo(35, 50);
-                ctx.lineTo(74, 65);
-                ctx.lineTo(58, -55);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-
-                [[-42, -55, -62, -108, -16, -72], [42, -55, 62, -108, 16, -72]].forEach(([x1, y1, x2, y2, x3, y3]) => {
-                    ctx.fillStyle = '#0d061a';
-                    ctx.strokeStyle = '#ff2a8d';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(x1, y1);
-                    ctx.lineTo(x2, y2);
-                    ctx.lineTo(x3, y3);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
-                });
-
-                ctx.fillStyle = '#f8e6f0';
-                ctx.strokeStyle = '#ff2a8d';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(-44, -45);
-                ctx.quadraticCurveTo(-45, 5, 0, 22);
-                ctx.quadraticCurveTo(45, 5, 44, -45);
-                ctx.quadraticCurveTo(0, -78, -44, -45);
-                ctx.fill();
-                ctx.stroke();
-
-                const lookX = this.pointerX * 4;
-                const lookY = this.pointerY * 2.5;
-                const eyeOpenScale = Math.max(0.08, 1 - this.eyeBlink);
-
-                [-20, 20].forEach((ex) => {
-                    ctx.save();
-                    ctx.translate(ex, -16);
-                    ctx.scale(1, eyeOpenScale);
-                    ctx.fillStyle = '#140826';
-                    ctx.beginPath();
-                    ctx.ellipse(0, 0, 11, 13, 0, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = stateColor;
-                    ctx.beginPath();
-                    ctx.arc(lookX, lookY, 6.5, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-                });
-            }
-
-            render() {
-                const ctx = this.ctx;
-                const width = this.logicalWidth;
-                const height = this.logicalHeight;
-                const cx = width / 2;
-                const cy = height / 2;
-
-                // Smooth mouse/touch tracking
-                this.pointerX += (this.targetPointerX - this.pointerX) * 0.08;
-                this.pointerY += (this.targetPointerY - this.pointerY) * 0.08;
-
-                ctx.clearRect(0, 0, width, height);
-
-                // Background Ambient Particles
-                this.drawParticles();
-
-                // Blink timing logic
-                this.blinkTimer++;
-                if (this.blinkTimer > 170) {
-                    this.eyeBlink = Math.max(0, Math.sin((this.blinkTimer - 170) * 0.35));
-                    if (this.blinkTimer > 185) {
-                        this.eyeBlink = 0;
-                        this.blinkTimer = 0;
-                    }
-                }
-
-                // Mouth movement dynamically calculated
-                if (this.state === 'TALKING') {
-                    this.mouthOpen = 0.25 + Math.abs(Math.sin(Date.now() * 0.022)) * 0.75;
-                } else if (this.state === 'LISTENING') {
-                    this.mouthOpen = 0.12;
-                } else {
-                    this.mouthOpen = 0;
-                }
-
-                // Subtle Breathing & Hover Motion
-                const breathOffsetY = Math.sin(Date.now() * 0.0025) * 3.5;
-                const talkBounceY = this.state === 'TALKING' ? Math.sin(Date.now() * 0.016) * 2.5 : 0;
-                const targetTilt = this.state === 'LISTENING' ? 0.04 : (this.state === 'THINKING' ? -0.03 : 0);
-                this.tiltAngle += (targetTilt - this.tiltAngle) * 0.1;
-
-                ctx.save();
-                ctx.translate(cx + this.pointerX * 6, cy + breathOffsetY + talkBounceY + this.pointerY * 4);
-                ctx.rotate(this.tiltAngle);
-
-                if (this.imgLoaded) {
-                    // Scale full-body image_2f366b.jpg cleanly into viewport
-                    const aspect = this.avatarImg.width / this.avatarImg.height;
-                    const drawHeight = height * 0.96;
-                    const drawWidth = drawHeight * aspect;
-                    const scale = drawHeight / 350; // Normalized proportional scale
-
-                    // Soft edge vignette & purple neon aura behind sprite
-                    ctx.save();
-                    ctx.shadowBlur = 24;
-                    ctx.shadowColor = this.state === 'THINKING' ? 'rgba(255, 230, 0, 0.5)' : 'rgba(168, 85, 247, 0.55)';
-                    ctx.drawImage(
-                        this.avatarImg,
-                        -drawWidth / 2,
-                        -drawHeight / 2,
-                        drawWidth,
-                        drawHeight
-                    );
-                    ctx.restore();
-
-                    // 1. Floating Purple Plasma Orb Aura (Aligned to Suki's raised right hand)
-                    const orbX = -46 * scale;
-                    const orbY = -92 * scale;
-                    const orbPulse = 1 + Math.sin(Date.now() * 0.007) * 0.18 + (this.state === 'THINKING' ? 0.28 : 0);
-
-                    ctx.save();
-                    ctx.translate(orbX, orbY);
-                    ctx.scale(orbPulse, orbPulse);
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 22 * scale, 0, Math.PI * 2);
-                    ctx.strokeStyle = this.state === 'THINKING' ? '#ffe600' : '#bf5af2';
-                    ctx.lineWidth = 1.5;
-                    ctx.setLineDash([8, 6]);
-                    ctx.rotate(Date.now() * 0.004);
-                    ctx.shadowBlur = 14;
-                    ctx.shadowColor = '#bf5af2';
-                    ctx.stroke();
-                    ctx.restore();
-
-                    // 2. Cyber-Katana Energy Shimmer (Aligned along diagonal blade)
-                    if (this.state === 'TALKING' || this.state === 'THINKING') {
-                        ctx.save();
-                        ctx.strokeStyle = this.state === 'THINKING' ? 'rgba(255, 230, 0, 0.55)' : 'rgba(0, 240, 255, 0.5)';
-                        ctx.lineWidth = 2;
-                        ctx.shadowBlur = 10;
-                        ctx.shadowColor = ctx.strokeStyle;
-                        ctx.beginPath();
-                        ctx.moveTo(46 * scale, 22 * scale);
-                        ctx.lineTo(-10 * scale, 130 * scale);
-                        ctx.stroke();
-                        ctx.restore();
-                    }
-
-                    // 3. Dynamic Eye Blink & Scanner Overlays (Calibrated to face coordinates)
-                    const eyeY = -124 * scale;
-                    const leftEyeX = -5 * scale;
-                    const rightEyeX = 11 * scale;
-
-                    if (this.eyeBlink > 0.12) {
-                        ctx.fillStyle = '#1b0d2e';
-                        const blinkH = 4.2 * scale * this.eyeBlink;
-                        ctx.beginPath();
-                        ctx.ellipse(leftEyeX, eyeY, 4.5 * scale, blinkH, 0, 0, Math.PI * 2);
-                        ctx.ellipse(rightEyeX, eyeY, 4.5 * scale, blinkH, 0, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-
-                    if (this.state === 'LISTENING' || this.state === 'THINKING') {
-                        ctx.save();
-                        ctx.translate(rightEyeX, eyeY);
-                        ctx.strokeStyle = '#00f0ff';
-                        ctx.lineWidth = 1;
-                        ctx.rotate(Date.now() * 0.006);
-                        ctx.beginPath();
-                        ctx.arc(0, 0, 5.5 * scale, 0, Math.PI * 2);
-                        ctx.stroke();
-                        ctx.restore();
-                    }
-
-                    // 4. Lip-Sync Mouth Overlay
-                    const mouthX = 2.5 * scale + (this.pointerX * 0.8);
-                    const mouthY = -111 * scale;
-
-                    if (this.mouthOpen > 0.08) {
-                        const mHeight = (1.2 + this.mouthOpen * 3.2) * scale;
-                        const mWidth = (2.8 + this.mouthOpen * 1.1) * scale;
-
-                        ctx.save();
-                        ctx.translate(mouthX, mouthY);
-                        ctx.fillStyle = '#3b0722';
-                        ctx.beginPath();
-                        ctx.ellipse(0, 0, mWidth, mHeight, 0, 0, Math.PI * 2);
-                        ctx.fill();
-
-                        ctx.strokeStyle = '#ff2a8d';
-                        ctx.lineWidth = 1;
-                        ctx.stroke();
-                        ctx.restore();
-                    }
-                } else {
-                    this.drawProceduralCyberAvatar(ctx);
-                }
-
-                ctx.restore();
-            }
-        }
-
-        // --- Simulated LLM Engine (Resilient Fallback) ---
-        class SimulatedLLMEngine {
-            async generate(prompt, onChunk) {
-                const text = prompt.toLowerCase();
-                let response = "";
-
-                if (text.includes("occult") || text.includes("diagnostics")) {
-                    response = "[OCCULT & ARCANE DIAGNOSTICS]\nAstral Sigil: Synchronized\nPlasma Orb Flux: 99.2% Nominal\nCyber-Katana Edge: Phase-Locked\nNo spectral anomalies detected in Sector 7.";
-                } else if (text.includes("status") || text.includes("neural")) {
-                    response = "[SYSTEM DIAGNOSTIC]\nCore Temperature: 34°C\nNeural Mesh: Operational (100% Sync)\nMana Core: 98.4% Charged\nAll sub-routines running smoothly.";
-                } else if (text.includes("python") || text.includes("script")) {
-                    response = "Here is your requested Python snippet:\n\n```python\ndef cyber_pulse():\n    status = 'ONLINE'\n    print(f'[SUKI_AI] Neural Status: {status}')\n\ncyber_pulse()\n```";
-                } else if (text.includes("lore") || text.includes("city")) {
-                    response = "Neo-Tokyo, Sector 7: High above the rain-slicked pavement, quantum datalinks and arcane sigils illuminate the smog. SukiBot monitors all traffic nodes to keep operators safe.";
-                } else {
-                    response = `[SUKIBOT RESPONSE]: I have analyzed your neural query: "${prompt}". All occult and cybernetic subsystems are locked and operational. Command confirmed.`;
-                }
-
-                const words = response.split(" ");
-                for (let i = 0; i < words.length; i++) {
-                    await new Promise(r => setTimeout(r, 40));
-                    onChunk(words[i] + (i === words.length - 1 ? "" : " "));
-                }
-            }
-        }
-
-        // --- WebLLM Real / Fallback Controller ---
-        class WebLLMController {
-            constructor() {
-                this.engine = null;
-                this.simulated = new SimulatedLLMEngine();
-                this.currentModel = "simulated";
-                this.isInit = false;
-            }
-
-            async setModel(modelId, onProgress) {
-                this.currentModel = modelId;
-                const badge = document.getElementById('engine-badge');
-                badge.innerText = modelId === 'simulated' ? 'DEMO' : 'WEBGPU';
-
-                if (modelId === 'simulated') {
-                    this.isInit = true;
-                    return;
-                }
-
-                if (!window.webLLM || !navigator.gpu) {
-                    alert("WebGPU is unavailable on this browser/device. Switching to Fast Demo Simulator.");
-                    document.getElementById('model-select').value = 'simulated';
-                    badge.innerText = 'DEMO';
-                    this.currentModel = 'simulated';
-                    return;
-                }
-
-                try {
-                    this.engine = new window.webLLM.MLCEngine();
-                    this.engine.setInitProgressCallback((report) => {
-                        if (onProgress) onProgress(report.text, report.progress);
-                    });
-                    await this.engine.reload(modelId);
-                    this.isInit = true;
-                } catch (err) {
-                    console.error("WebLLM Init failed:", err);
-                    alert("WebGPU initialization failed. Falling back to Demo Mode.");
-                    this.currentModel = 'simulated';
-                    document.getElementById('model-select').value = 'simulated';
-                    badge.innerText = 'DEMO';
-                }
-            }
-
-            async generateStream(prompt, onChunk) {
-                if (this.currentModel === 'simulated' || !this.engine) {
-                    await this.simulated.generate(prompt, onChunk);
-                    return;
-                }
-
-                try {
-                    const messages = [
-                        { role: "system", content: "You are SukiBot, an upbeat, helpful, cyberpunk anime AI assistant with occult tech aesthetics." },
-                        { role: "user", content: prompt }
-                    ];
-                    const chunks = await this.engine.chat.completions.create({
-                        messages,
-                        stream: true,
-                    });
-
-                    for await (const chunk of chunks) {
-                        const content = chunk.choices[0]?.delta?.content || "";
-                        if (content) onChunk(content);
-                    }
-                } catch (e) {
-                    console.error("Stream error:", e);
-                    onChunk("\n[Neural Stream Interrupted. Falling back to diagnostic mode.]");
-                }
-            }
-        }
-
-        // --- Application Main Initialization & DOM Binding ---
-        window.addEventListener('DOMContentLoaded', () => {
-            // Point directly to your uploaded avatar file
-            const avatar = new CyberAvatarEngine('avatar-canvas', 'image_2f366b.jpg');
-            const llm = new WebLLMController();
-            let isGenerating = false;
-
-            // FPS Counter
-            let lastFrameTime = performance.now();
-            let frameCount = 0;
-            const fpsElem = document.getElementById('fps-counter');
-
-            function animLoop() {
-                avatar.render();
-                frameCount++;
-                const now = performance.now();
-                if (now - lastFrameTime >= 1000) {
-                    fpsElem.innerText = frameCount;
-                    frameCount = 0;
-                    lastFrameTime = now;
-                }
-                requestAnimationFrame(animLoop);
-            }
-            requestAnimationFrame(animLoop);
-
-            // DOM Elements
-            const chatBox = document.getElementById('chat-box');
-            const chatForm = document.getElementById('chat-form');
-            const userInput = document.getElementById('user-input');
-            const sendBtn = document.getElementById('send-btn');
-            const micBtn = document.getElementById('mic-btn');
-            const statusText = document.getElementById('status-text');
-            const equalizer = document.getElementById('equalizer');
-            const modelSelect = document.getElementById('model-select');
-            const progressContainer = document.getElementById('download-progress-container');
-            const progressBar = document.getElementById('progress-bar');
-            const progressText = document.getElementById('progress-text');
-            const progressPercent = document.getElementById('progress-percent');
-            const charCount = document.getElementById('char-count');
-
-            // Sound & Voice Toggle
-            const toggleSoundBtn = document.getElementById('toggle-sound-btn');
-            const soundIcon = document.getElementById('sound-icon');
-            toggleSoundBtn.addEventListener('click', () => {
-                sounds.enabled = !sounds.enabled;
-                toggleSoundBtn.classList.toggle('text-slate-500', !sounds.enabled);
-                soundIcon.className = sounds.enabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark';
-                if (!sounds.enabled && 'speechSynthesis' in window) {
-                    window.speechSynthesis.cancel();
-                    equalizer.classList.remove('speaking-active');
-                }
-                sounds.playClick();
-            });
-
-            // Scanlines Toggle
-            const toggleScanlinesBtn = document.getElementById('toggle-scanlines-btn');
-            const scanlinesLayer = document.getElementById('scanlines-layer');
-            toggleScanlinesBtn.addEventListener('click', () => {
-                scanlinesLayer.classList.toggle('hidden');
-                sounds.playClick();
-            });
-
-            // Expand Frame Toggle
-            const expandFrameBtn = document.getElementById('expand-frame-btn');
-            const appViewport = document.getElementById('app-viewport');
-            expandFrameBtn.addEventListener('click', () => {
-                appViewport.classList.toggle('sm:max-w-[480px]');
-                appViewport.classList.toggle('sm:max-w-[900px]');
-                sounds.playClick();
-                setTimeout(() => avatar.resize(), 310);
-            });
-
-            // Model Switch Handler
-            modelSelect.addEventListener('change', async (e) => {
-                sounds.playClick();
-                const modelId = e.target.value;
-                if (modelId === 'simulated') {
-                    progressContainer.classList.add('hidden');
-                    await llm.setModel('simulated');
-                    return;
-                }
-
-                progressContainer.classList.remove('hidden');
-                statusText.innerText = 'LOADING MODEL...';
-                avatar.setState('THINKING');
-
-                await llm.setModel(modelId, (text, progress) => {
-                    const pct = Math.round((progress || 0) * 100);
-                    progressBar.style.width = pct + '%';
-                    progressPercent.innerText = pct + '%';
-                    progressText.innerText = text || 'Downloading model weights...';
-                });
-
-                statusText.innerText = 'ONLINE';
-                avatar.setState('IDLE');
-                setTimeout(() => progressContainer.classList.add('hidden'), 2000);
-            });
-
-            // Speech Recognition
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            let recognition = null;
-            let isListening = false;
-
-            if (SpeechRecognition) {
-                recognition = new SpeechRecognition();
-                recognition.continuous = false;
-                recognition.lang = 'en-US';
-
-                recognition.onstart = () => {
-                    isListening = true;
-                    micBtn.classList.add('mic-listening');
-                    statusText.innerText = 'LISTENING...';
-                    avatar.setState('LISTENING');
-                    sounds.playClick();
-                };
-
-                recognition.onend = () => {
-                    isListening = false;
-                    micBtn.classList.remove('mic-listening');
-                    if (!isGenerating) statusText.innerText = 'ONLINE';
-                    if (avatar.state === 'LISTENING') avatar.setState('IDLE');
-                };
-
-                recognition.onerror = () => {
-                    isListening = false;
-                    micBtn.classList.remove('mic-listening');
-                    statusText.innerText = 'MIC BLOCKED';
-                    avatar.setState('IDLE');
-                    sounds.playError();
-                };
-
-                recognition.onresult = (event) => {
-                    const transcript = event.results[0][0].transcript;
-                    userInput.value = transcript;
-                    handleSend(transcript);
-                };
-            } else {
-                micBtn.style.display = 'none';
-            }
-
-            micBtn.addEventListener('click', () => {
-                if (!recognition) return;
-                if (isListening) recognition.stop();
-                else recognition.start();
-            });
-
-            // Unlock TTS inside user gesture for iOS Safari compatibility
-            function unlockSpeech() {
-                if ('speechSynthesis' in window && sounds.enabled) {
-                    const primer = new SpeechSynthesisUtterance('');
-                    primer.volume = 0;
-                    window.speechSynthesis.speak(primer);
-                }
-            }
-
-            // TTS Speech Synthesis Sync
-            function speak(text) {
-                if (!sounds.enabled || !('speechSynthesis' in window)) return;
-                window.speechSynthesis.cancel();
-                const cleanText = text.replace(/\[.*?\]/g, '').replace(/```[\s\S]*?```/g, 'Code block outputted.').trim();
-                if (!cleanText) return;
-
-                const utterance = new SpeechSynthesisUtterance(cleanText);
-                utterance.pitch = 1.15;
-                utterance.rate = 1.05;
-                
-                equalizer.classList.add('speaking-active');
-                avatar.setState('TALKING');
-                
-                utterance.onend = () => {
-                    equalizer.classList.remove('speaking-active');
-                    avatar.setState('IDLE');
-                };
-                utterance.onerror = () => {
-                    equalizer.classList.remove('speaking-active');
-                    avatar.setState('IDLE');
-                };
-                
-                window.speechSynthesis.speak(utterance);
-            }
-
-            // Append Chat Card
-            function createMessageCard(sender) {
-                const card = document.createElement('div');
-                card.className = `hud-card p-3 rounded-lg ${sender === 'USER' ? 'border-cyan-500/40 ml-6 bg-cyan-950/20' : 'border-pink-500/40 mr-6 bg-pink-950/20'}`;
-                card.innerHTML = `
-                    <p class="font-orbitron text-xs ${sender === 'USER' ? 'text-cyan-400' : 'text-pink-400'} mb-1 font-bold">&gt; ${sender}</p>
-                    <div class="msg-content text-slate-200 text-xs font-mono leading-relaxed whitespace-pre-wrap break-words"></div>
-                `;
-                chatBox.appendChild(card);
-                chatBox.scrollTop = chatBox.scrollHeight;
-                return card.querySelector('.msg-content');
-            }
-
-            // Handle Input Submission
-            async function handleSend(text) {
-                if (isGenerating || !text || !text.trim()) return;
-
-                isGenerating = true;
-                sendBtn.disabled = true;
-                sounds.playClick();
-                unlockSpeech();
-
-                userInput.value = '';
-                charCount.innerText = '0 CHARS';
-
-                const userContentNode = createMessageCard('USER');
-                userContentNode.innerText = text.trim();
-
-                statusText.innerText = 'PROCESSING...';
-                avatar.setState('THINKING');
-
-                const botContentNode = createMessageCard('SUKIBOT');
-                let fullResponse = "";
-
-                try {
-                    await llm.generateStream(text.trim(), (chunk) => {
-                        if (!fullResponse) avatar.setState('TALKING');
-                        fullResponse += chunk;
-                        botContentNode.innerText = fullResponse;
-                        chatBox.scrollTop = chatBox.scrollHeight;
-                    });
-
-                    statusText.innerText = 'ONLINE';
-                    sounds.playReceive();
-                    speak(fullResponse);
-                } finally {
-                    isGenerating = false;
-                    sendBtn.disabled = false;
-                }
-            }
-
-            // Form Submit Event
-            chatForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                handleSend(userInput.value);
-            });
-
-            // Input Char Counter
-            userInput.addEventListener('input', (e) => {
-                charCount.innerText = `${e.target.value.length} CHARS`;
-            });
-
-            // Quick Prompt Chips
-            document.querySelectorAll('.chip-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const text = btn.innerText.replace(/^[^\w]+/, '').trim();
-                    handleSend(text);
-                });
-            });
-
-            // Clear Chat
-            document.getElementById('clear-chat-btn').addEventListener('click', () => {
-                sounds.playClick();
-                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-                equalizer.classList.remove('speaking-active');
-                avatar.setState('IDLE');
-                chatBox.innerHTML = `
-                    <div class="hud-card p-3 rounded-lg cyber-corner">
-                        <p class="font-orbitron text-xs text-cyan-400 mb-1">&gt; SYSTEM RESET</p>
-                        <p class="text-slate-300 text-xs">Chat buffer cleared. Ready for new input.</p>
-                    </div>
-                `;
-            });
-
-            // Export Chat Log
-            document.getElementById('export-chat-btn').addEventListener('click', () => {
-                sounds.playClick();
-                let logText = "=== SUKIBOT NEURAL CHAT LOG ===\n\n";
-                chatBox.querySelectorAll('.hud-card').forEach(card => {
-                    logText += card.innerText + "\n-------------------------\n";
-                });
-
-                const blob = new Blob([logText], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `sukibot-chat-log-${Date.now()}.txt`;
-                a.click();
-                URL.revokeObjectURL(url);
-            });
+          send('done');
         });
-    </script>
-</body>
-</html>
+      })();
+    `;
+
+    const srcDoc = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta http-equiv="Content-Security-Policy"
+          content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; connect-src 'none'; img-src 'none'; style-src 'none'; form-action 'none';">
+      </head>
+      <body>
+        <script>${bootstrap}<\/script>
+      </body>
+      </html>
+    `;
+
+    iframe.onload = () => {
+      if (finished || runId !== runCounter) return;
+
+      port = channel.port1;
+
+      iframe.contentWindow.postMessage(
+        { type: 'initialize' },
+        '*',
+        [channel.port2]
+      );
+    };
+
+    activeRun = { runId, cleanup };
+
+    document.body.appendChild(iframe);
+
+    iframe.srcdoc = srcDoc;
+
+    timeout = setTimeout(() => finish(true), 1500);
+  }
+
+  // ------------------------------------------
+  // AUTO-IMPROVEMENT
+  // ------------------------------------------
+
+  function autoImprove() {
+    let updated = editor.value;
+    let applied = 0;
+
+    for (const rule of rules) {
+      if (rule.advisory || !rule.fix || !rule.test(updated)) {
+        continue;
+      }
+
+      const next = rule.fix(updated);
+
+      if (next !== updated) {
+        updated = next;
+        applied++;
+      }
+    }
+
+    if (applied > 0) {
+      editor.value = updated;
+
+      patchesApplied += applied;
+      saveLearnedCount();
+
+      analyzeCode(updated);
+      triggerSlash();
+
+      quote.textContent =
+        `"I applied ${applied} upgrade${applied === 1 ? '' : 's'}! My blade gets sharper."`;
+
+      output.textContent =
+        `Sukibot applied ${applied} automatic patch(es). Run the code to test the changes.`;
+
+    } else {
+      quote.textContent =
+        '"No safe automatic improvements found. Let us inspect the code together."';
+    }
+  }
+
+  // ------------------------------------------
+  // EVENT LISTENERS
+  // ------------------------------------------
+
+  $('runCodeBtn')?.addEventListener('click', () => {
+    analyzeCode(editor.value);
+    runInSandbox(editor.value);
+  });
+
+  $('slashTestBtn')?.addEventListener('click', () => {
+    triggerSlash();
+
+    quote.textContent =
+      '"Hmph! Did you see that? My katana is super sharp!"';
+  });
+
+  $('autoFixBtn')?.addEventListener('click', autoImprove);
+
+  $('clearConsoleBtn')?.addEventListener('click', () => {
+    output.replaceChildren();
+  });
+
+  editor.addEventListener('input', () => {
+    analyzeCode(editor.value);
+  });
+
+  window.addEventListener('pagehide', () => {
+    if (activeRun) activeRun.cleanup();
+  });
+
+  // ------------------------------------------
+  // INITIALIZATION
+  // ------------------------------------------
+
+  saveLearnedCount();
+  analyzeCode(editor.value);
+
+  quote.textContent =
+    '"Welcome back to my gothic cyber dojo! Let us squash some bugs."';
+
+})();
