@@ -1,546 +1,97 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sukibot — Gothic Cyber Dojo</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @keyframes katanaSlash {
-      0% { transform: rotate(-35deg) scale(0.95); }
-      45% { transform: rotate(28deg) scale(1.08); }
-      100% { transform: rotate(0deg) scale(1); }
-    }
-
-    @keyframes slashArcAnim {
-      0% { opacity: 0; transform: scaleX(0.4); }
-      40% { opacity: 1; transform: scaleX(1.05); }
-      100% { opacity: 0; transform: scaleX(1.25); }
-    }
-
-    .katana-slashing {
-      transform-origin: center;
-      animation: katanaSlash 0.35s ease-out;
-    }
-
-    .slash-arc-active {
-      transform-origin: center;
-      animation: slashArcAnim 0.4s ease-out;
-    }
-  </style>
-</head>
-<body class="min-h-screen bg-[#0c0617] text-purple-100 font-sans p-6">
-  <div class="max-w-6xl mx-auto space-y-6">
-    <header class="flex flex-wrap items-center justify-between gap-4 border-b border-[#b026ff]/30 pb-4">
-      <div>
-        <h1 class="text-2xl font-bold tracking-wide text-purple-100">SUKIBOT DOJO</h1>
-        <p id="sukibotQuote" class="text-sm text-purple-300 mt-1">Initializing...</p>
-      </div>
-      <div class="flex items-center gap-4 text-sm">
-        <span id="evolutionBadge" class="px-3 py-1 rounded-full bg-[#190f29] border border-[#b026ff]/40 text-purple-200">
-          Patches Applied: 0
-        </span>
-        <span id="sukibotStatus" class="font-semibold text-[#39ff14]">READY</span>
-        <span id="execTime" class="text-purple-300">0.0 ms</span>
-      </div>
-    </header>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <section class="lg:col-span-2 space-y-3">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <label for="codeEditor" class="text-sm font-semibold text-purple-200">Code Scroll</label>
-          <div class="flex flex-wrap gap-2">
-            <button id="runCodeBtn" type="button" class="px-3 py-1.5 rounded bg-[#b026ff] hover:bg-[#9917e6] text-white text-sm font-medium">
-              Run Code
-            </button>
-            <button id="autoFixBtn" type="button" class="px-3 py-1.5 rounded bg-[#190f29] hover:bg-[#25163d] border border-[#b026ff]/40 text-purple-100 text-sm">
-              Auto-Fix
-            </button>
-            <button id="slashTestBtn" type="button" class="px-3 py-1.5 rounded bg-[#190f29] hover:bg-[#25163d] border border-[#b026ff]/40 text-purple-100 text-sm">
-              Slash Test
-            </button>
-            <button id="clearConsoleBtn" type="button" class="px-3 py-1.5 rounded bg-[#190f29] hover:bg-[#25163d] border border-[#b026ff]/40 text-purple-200 text-sm">
-              Clear Console
-            </button>
-          </div>
-        </div>
-
-        <textarea id="codeEditor" rows="12" spellcheck="false" class="w-full rounded-lg bg-[#140b24] border border-[#b026ff]/40 p-3 font-mono text-sm text-purple-100 focus:outline-none focus:border-[#39ff14]">console.log("Hello from Sukibot!");
-const x = 10;
-if (x == 10) {
-  console.log("Loose equality triggered");
-}</textarea>
-
-        <div>
-          <h2 class="text-sm font-semibold text-purple-200 mb-2">Console Output</h2>
-          <pre id="consoleOutput" class="h-44 overflow-y-auto rounded-lg bg-[#140b24] border border-[#b026ff]/40 p-3 font-mono text-xs text-purple-100 whitespace-pre-wrap"></pre>
-        </div>
-      </section>
-
-      <aside class="space-y-4">
-        <div class="rounded-lg bg-[#140b24] border border-[#b026ff]/40 p-4 flex flex-col items-center justify-center">
-          <svg viewBox="0 0 180 120" class="w-44 h-28 overflow-visible" aria-hidden="true">
-            <path id="slashArc" d="M 20 85 Q 90 15 160 75" fill="none" stroke="#39ff14" stroke-width="4" stroke-linecap="round" opacity="0" />
-            <g id="katanaGroup">
-              <line x1="35" y1="95" x2="145" y2="25" stroke="#e9d5ff" stroke-width="5" stroke-linecap="round" />
-              <line x1="20" y1="105" x2="35" y2="95" stroke="#b026ff" stroke-width="7" stroke-linecap="round" />
-            </g>
-          </svg>
-          <span class="text-xs text-purple-300 mt-1">Blade Telemetry</span>
-        </div>
-
-        <div class="rounded-lg bg-[#140b24] border border-[#b026ff]/40 p-4">
-          <h2 class="text-sm font-semibold text-purple-200 mb-2">Diagnostic Findings</h2>
-          <ul id="findingsList" class="space-y-2 text-xs"></ul>
-        </div>
-      </aside>
-    </div>
-  </div>
-
-  <script>
-    (() => {
-      'use strict';
-
-      const STORAGE_KEY = 'sukibot_learned_rules_v2';
-      const $ = id => document.getElementById(id);
-
-      const editor = $('codeEditor');
-      const output = $('consoleOutput');
-      const findings = $('findingsList');
-      const katana = $('katanaGroup');
-      const slashArc = $('slashArc');
-      const status = $('sukibotStatus');
-      const quote = $('sukibotQuote');
-      const execTime = $('execTime');
-      const badge = $('evolutionBadge');
-
-      if (!editor || !output || !findings || !status || !quote || !execTime) {
-        console.error('Sukibot: Required HTML elements are missing.');
-        return;
-      }
-
-      let activeRun = null;
-      let runCounter = 0;
-      let patchesApplied = loadLearnedCount();
-
-      // PERSISTENT STORAGE
-
-      function loadLearnedCount() {
-        try {
-          const saved = JSON.parse(
-            localStorage.getItem(STORAGE_KEY) || '{}'
-          );
-
-          return Math.max(0, Number(saved.patchesApplied) || 0);
-        } catch {
-          return 0;
-        }
-      }
-
-      function saveLearnedCount() {
-        try {
-          localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify({
-              patchesApplied,
-              updatedAt: Date.now()
-            })
-          );
-        } catch {
-          console.warn('Sukibot: Storage unavailable.');
-        }
-
-        if (badge) {
-          badge.textContent = `Patches Applied: ${patchesApplied}`;
-        }
-      }
-
-      // DIAGNOSTIC RULES
-
-      const rules = [
-        {
-          id: 'strict-equality',
-          label: 'Possible loose equality (== or !=). Prefer strict equality.',
-          test: code => /(^|[^=!<>])={2}([^=]|$)|!={1}([^=]|$)/.test(code),
-          fix: code => code
-            .replace(/(^|[^=!<>])==(?!=)/g, '$1===')
-            .replace(/!=(?!=)/g, '!==')
-        },
-        {
-          id: 'no-var',
-          label: 'Use let or const instead of var.',
-          test: code => /\bvar\s+/.test(code),
-          fix: code => code.replace(/\bvar\s+/g, 'let ')
-        },
-        {
-          id: 'json-parse',
-          label: 'JSON.parse can throw. Validate input and handle parsing errors.',
-          test: code => /JSON\.parse\s*\(/.test(code),
-          advisory: true
-        },
-        {
-          id: 'debugger',
-          label: 'Remove debugger statements before production.',
-          test: code => /\bdebugger\s*;?/.test(code),
-          fix: code => code.replace(/\bdebugger\s*;?/g, '')
-        }
-      ];
-
-      // FINDINGS
-
-      function analyzeCode(code) {
-        const detected = rules.filter(rule => rule.test(code));
-
-        findings.replaceChildren();
-
-        if (!detected.length) {
-          const li = document.createElement('li');
-          li.className = 'text-[#39ff14] p-2';
-          li.textContent = '✓ No known issues detected. Blade clean!';
-          findings.appendChild(li);
-          return detected;
-        }
-
-        detected.forEach(rule => {
-          const li = document.createElement('li');
-
-          li.className =
-            'p-2 rounded-lg bg-[#190f29] border border-[#b026ff]/30 text-purple-200';
-
-          li.textContent =
-            (rule.advisory ? '⚠ ' : '◆ ') + rule.label;
-
-          findings.appendChild(li);
-        });
-
-        return detected;
-      }
-
-      // KATANA ANIMATION
-
-      function triggerSlash() {
-        if (!katana || !slashArc) return;
-
-        katana.classList.remove('katana-slashing');
-        slashArc.classList.remove('slash-arc-active');
-
-        void katana.offsetWidth;
-
-        katana.classList.add('katana-slashing');
-        slashArc.classList.add('slash-arc-active');
-      }
-
-      // CONSOLE FORMATTING
-
-      function appendOutput(type, message, runId) {
-        if (runId !== runCounter) return;
-
-        const prefixes = {
-          log: '[LOG] ',
-          warn: '[WRN] ',
-          error: '[ERR] ',
-          info: '[INFO] '
-        };
-
-        const line = document.createElement('div');
-
-        line.textContent =
-          (prefixes[type] || '[LOG] ') + message;
-
-        line.className =
-          type === 'error' ? 'text-rose-400' :
-          type === 'warn' ? 'text-yellow-300' :
-          'text-purple-100';
-
-        output.appendChild(line);
-        output.scrollTop = output.scrollHeight;
-      }
-
-      // SANDBOXED JAVASCRIPT EXECUTION
-
-      function runInSandbox(code) {
-        if (activeRun) {
-          activeRun.cleanup();
-        }
-
-        const runId = ++runCounter;
-        const started = performance.now();
-
-        output.replaceChildren();
-
-        status.textContent = 'SLASHING';
-        status.className = 'font-semibold text-[#39ff14]';
-
-        quote.textContent =
-          '"Stand back! Sukibot is entering the code dojo!"';
-
-        triggerSlash();
-
-        const iframe = document.createElement('iframe');
-
-        iframe.setAttribute('sandbox', 'allow-scripts');
-        iframe.setAttribute('aria-hidden', 'true');
-        iframe.style.display = 'none';
-
-        const channel = new MessageChannel();
-
-        let finished = false;
-        let timeout = null;
-
-        function cleanup() {
-          if (finished) return;
-
-          finished = true;
-
-          clearTimeout(timeout);
-
-          channel.port1.onmessage = null;
-          channel.port1.close();
-
-          iframe.remove();
-
-          if (activeRun && activeRun.runId === runId) {
-            activeRun = null;
-          }
-        }
-
-        function finish(timedOut = false) {
-          if (finished) return;
-
-          if (timedOut) {
-            appendOutput(
-              'error',
-              'Execution timed out. The code may contain an infinite loop.',
-              runId
-            );
-
-            status.textContent = 'TIMEOUT';
-            status.className = 'font-semibold text-rose-400';
-
-            quote.textContent =
-              '"That code took too long! Even a ninja needs a break."';
-          } else if (status.textContent === 'SLASHING') {
-            status.textContent = 'CLEAN RUN';
-            status.className = 'font-semibold text-[#39ff14]';
-
-            quote.textContent =
-              '"Clean slice! Your code is looking sharp, senpai."';
-          }
-
-          if (!output.textContent.trim()) {
-            output.textContent = '(No console output)';
-          }
-
-          execTime.textContent =
-            `${(performance.now() - started).toFixed(1)} ms`;
-
-          cleanup();
-        }
-
-        channel.port1.onmessage = event => {
-          if (runId !== runCounter || finished) return;
-
-          const data = event.data;
-
-          if (!data || typeof data !== 'object') return;
-
-          if (data.type === 'done') {
-            finish(false);
-            return;
-          }
-
-          if (data.type === 'error') {
-            status.textContent = 'BUG FOUND';
-            status.className = 'font-semibold text-rose-400';
-
-            quote.textContent =
-              '"A bug detected! Let me help you sharpen that code."';
-          }
-
-          if (['log', 'warn', 'error', 'info'].includes(data.type)) {
-            appendOutput(data.type, String(data.message), runId);
-          }
-        };
-
-        const closingScriptTag = '</' + 'script>';
-
-        const bootstrap = `
-          (() => {
-            'use strict';
-
-            let parentPort;
-
-            const send = (type, message = '') => {
-              try {
-                parentPort?.postMessage({
-                  type,
-                  message: String(message)
-                });
-              } catch {}
-            };
-
-            window.addEventListener('message', async function initialize(event) {
-              if (!event.ports || !event.ports[0]) return;
-
-              window.removeEventListener('message', initialize);
-
-              parentPort = event.ports[0];
-
-              const stringify = value => {
-                if (typeof value === 'string') return value;
-
-                try {
-                  return JSON.stringify(value) ?? String(value);
-                } catch {
-                  return '[Unserializable value]';
-                }
-              };
-
-              for (const type of ['log', 'warn', 'error', 'info']) {
-                console[type] = (...args) => {
-                  send(type, args.map(stringify).join(' '));
-                };
-              }
-
-              window.onerror = (message, source, line) => {
-                send('error', 'Uncaught error at line ' + line + ': ' + message);
-                return true;
-              };
-
-              window.onunhandledrejection = event => {
-                send('error', 'Unhandled promise rejection: ' + stringify(event.reason));
-              };
-
-              try {
-                const userCode = ${JSON.stringify(code)};
-
-                const execute = new Function(
-                  'console',
-                  '"use strict"; return (async function() {\\n' +
-                  userCode +
-                  '\\n}).call(undefined);'
-                );
-
-                await execute(console);
-              } catch (error) {
-                send('error', (error && error.name ? error.name : 'Error') + ': ' + (error && error.message ? error.message : String(error)));
-              }
-
-              send('done');
-            });
-          })();
-        `;
-
-        const srcDoc = `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta http-equiv="Content-Security-Policy"
-              content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; connect-src 'none'; img-src 'none'; style-src 'none'; form-action 'none';">
-          </head>
-          <body>
-            <script>${bootstrap}${closingScriptTag}
-          </body>
-          </html>
-        `;
-
-        iframe.onload = () => {
-          if (finished || runId !== runCounter) return;
-
-          iframe.contentWindow.postMessage(
-            { type: 'initialize' },
-            '*',
-            [channel.port2]
-          );
-        };
-
-        activeRun = { runId, cleanup };
-
-        timeout = setTimeout(() => finish(true), 1500);
-
-        document.body.appendChild(iframe);
-        iframe.srcdoc = srcDoc;
-      }
-
-      // AUTOMATIC IMPROVEMENT
-
-      function autoImprove() {
-        let updated = editor.value;
-        let applied = 0;
-
-        const safeRules = rules.filter(rule =>
-          rule.id === 'debugger' &&
-          !rule.advisory &&
-          rule.fix
-        );
-
-        for (const rule of safeRules) {
-          if (!rule.test(updated)) continue;
-
-          const next = rule.fix(updated);
-
-          if (next !== updated) {
-            updated = next;
-            applied++;
-          }
-        }
-
-        if (applied > 0) {
-          editor.value = updated;
-
-          patchesApplied += applied;
-          saveLearnedCount();
-
-          analyzeCode(updated);
-          triggerSlash();
-
-          quote.textContent =
-            `"I applied ${applied} safe upgrade(s)! My blade gets sharper."`;
-
-          output.textContent =
-            `Sukibot applied ${applied} automatic patch(es). Run the code to test the changes.`;
+Here are the corrected functions and code blocks for your application, fixing the syntax, escaping, and rendering bugs:1. Matrix Rain Loop (drawMatrixRain)
+
+Remove the erroneous fontSize property assignment on the canvas context object:
+function drawMatrixRain() {
+    if (!matrixCtx || !matrixCanvas) return;
+    matrixCtx.fillStyle = 'rgba(5, 3, 8, 0.08)';
+    matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+    matrixCtx.font = '14px monospace';
+
+    for (let i = 0; i < matrixDrops.length; i++) {
+        const char = matrixChars[Math.floor(Math.random() * matrixChars.length)];
+        if (Math.random() > 0.92) {
+            matrixCtx.fillStyle = '#f0abfc';
         } else {
-          quote.textContent =
-            '"No verified automatic improvements found. Let us inspect the code together."';
+            matrixCtx.fillStyle = '#a855f7';
         }
-      }
+        const x = i * 14;
+        const y = matrixDrops[i] * 14;
+        matrixCtx.fillText(char, x, y);
+        if (y > matrixCanvas.height && Math.random() > 0.975) {
+            matrixDrops[i] = 0;
+        }
+        matrixDrops[i]++;
+    }
+}
+-----2. File Upload Status Update (handleFileUpload)
 
-      // EVENT LISTENERS
+Wrap the status text update in proper template literal backticks:
+const statusLoader = document.getElementById('stage-loading');
+if (statusLoader) {
+    statusLoader.style.display = 'flex';
+    statusLoader.querySelector('span').textContent = `Installing VRM (${file.name})...`;
+}
+-----3. Clear Chat Event Listener (clear-chat-btn)
 
-      $('runCodeBtn')?.addEventListener('click', () => {
-        analyzeCode(editor.value);
-        runInSandbox(editor.value);
-      });
+Ensure the HTML string assigned to innerHTML is properly enclosed in backticks:
+document.getElementById('clear-chat-btn')?.addEventListener('click', () => {
+    document.getElementById('chat-messages').innerHTML = `
+        <div class="flex space-x-2">
+            <div class="w-6 h-6 rounded-full ninja-gradient shrink-0 flex items-center justify-center font-black text-[10px] text-white">ðŸ–¤</div>
+            <div class="bg-[#1e1136]/90 border border-pink-500/30 p-3 rounded-xl text-pink-100 leading-relaxed shadow-md">
+                Shadows reset. <span class="text-pink-400 font-black">SUKI</span> is listening from the dark quiet...
+            </div>
+        </div>
+    `;
+});
+-----4. Chat Form Message Insertion & API Fetch
 
-      $('slashTestBtn')?.addEventListener('click', () => {
-        triggerSlash();
+Ensure the template literals for user message insertion and the Gemini API fetch endpoint are correctly escaped with backticks:
+document.getElementById('chat-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('chat-input');
+    const text = input ? input.value.trim() : '';
+    if (!text) return;
 
-        quote.textContent =
-          '"Hmph! Did you see that? My katana is super sharp!"';
-      });
+    const chatMessages = document.getElementById('chat-messages');
+    chatMessages.insertAdjacentHTML('beforeend', `
+        <div class="flex justify-end">
+            <div class="bg-pink-600/30 border border-pink-400/40 p-2.5 rounded-xl text-white max-w-[85%] leading-relaxed shadow-sm">
+                ${text}
+            </div>
+        </div>
+    `);
+    input.value = '';
+    chatMessages.scrollTop = chatMessages.scrollHeight;
 
-      $('autoFixBtn')?.addEventListener('click', autoImprove);
+    const apiKey = document.getElementById('gemini-key-input')?.value.trim() || '';
+    const modelName = document.getElementById('gemini-model-select')?.value || 'gemini-3.8-flash';
 
-      $('clearConsoleBtn')?.addEventListener('click', () => {
-        output.replaceChildren();
-      });
+    if (apiKey) {
+        try {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: `You are Suki, a cute gothic kitsune demon slayer anime girl with fox ears. Speak softly, cute, and delightfully mischievous with high energy breathing style references. User says: ${text}` }] }]
+                })
+            });
+            const data = await res.json();
+            const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Fox Breathing... failed to connect to Gemini API!";
+            appendSukiReply(reply);
+            return;
+        } catch (err) {
+            console.error(err);
+        }
+    }
 
-      editor.addEventListener('input', () => {
-        analyzeCode(editor.value);
-      });
-
-      window.addEventListener('pagehide', () => {
-        if (activeRun) activeRun.cleanup();
-      });
-
-      // INITIALIZATION
-
-      saveLearnedCount();
-      analyzeCode(editor.value);
-
-      quote.textContent =
-        '"Welcome back to my gothic cyber dojo! Let us squash some bugs."';
-    })();
-  </script>
-</body>
-</html>
+    setTimeout(() => {
+        const responses = [
+            `Um... "${text}"... sounds pleasantly dark and quiet. Fox Breathing First Form! ðŸ¦Šâš”ï¸`,
+            `I'll ponder upon "${text}" while sipping tea in the shadows... â˜•`,
+            `As you wish, Master! The crimson fox blade is ready for "${text}"... ðŸ—¡ï¸`
+        ];
+        appendSukiReply(responses[Math.floor(Math.random() * responses.length)]);
+    }, 500);
+});
+Would you like me to help you review or test any other part of your Three.js animation loops?
