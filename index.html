@@ -3,8 +3,7 @@
   'use strict';
 
   const STORAGE_KEY = 'sukibot_learned_rules_v2';
-
-  const $ = (id) => document.getElementById(id);
+  const $ = id => document.getElementById(id);
 
   const editor = $('codeEditor');
   const output = $('consoleOutput');
@@ -16,8 +15,8 @@
   const execTime = $('execTime');
   const badge = $('evolutionBadge');
 
-  if (!editor || !output || !findings) {
-    console.error('Sukibot initialization failed: required elements missing.');
+  if (!editor || !output || !findings || !status || !quote || !execTime) {
+    console.error('Sukibot: Required HTML elements are missing.');
     return;
   }
 
@@ -25,9 +24,7 @@
   let runCounter = 0;
   let patchesApplied = loadLearnedCount();
 
-  // ------------------------------------------
-  // PERSISTENT PATCH COUNTER
-  // ------------------------------------------
+  // PERSISTENT STORAGE
 
   function loadLearnedCount() {
     try {
@@ -51,15 +48,15 @@
         })
       );
     } catch (error) {
-      console.warn('Sukibot: browser storage unavailable.');
+      console.warn('Sukibot: Storage unavailable.');
     }
 
-    badge.textContent = `Patches Applied: ${patchesApplied}`;
+    if (badge) {
+      badge.textContent = `Patches Applied: ${patchesApplied}`;
+    }
   }
 
-  // ------------------------------------------
   // DIAGNOSTIC RULES
-  // ------------------------------------------
 
   const rules = [
     {
@@ -90,9 +87,7 @@
     }
   ];
 
-  // ------------------------------------------
   // FINDINGS
-  // ------------------------------------------
 
   function analyzeCode(code) {
     const detected = rules.filter(rule => rule.test(code));
@@ -122,9 +117,7 @@
     return detected;
   }
 
-  // ------------------------------------------
-  // ANIME SLASH ANIMATION
-  // ------------------------------------------
+  // KATANA ANIMATION
 
   function triggerSlash() {
     if (!katana || !slashArc) return;
@@ -138,9 +131,7 @@
     slashArc.classList.add('slash-arc-active');
   }
 
-  // ------------------------------------------
-  // SAFE OUTPUT FORMATTING
-  // ------------------------------------------
+  // CONSOLE FORMATTING
 
   function formatValue(value) {
     if (typeof value === 'string') return value;
@@ -177,9 +168,7 @@
     output.scrollTop = output.scrollHeight;
   }
 
-  // ------------------------------------------
-  // ISOLATED JAVASCRIPT RUNNER
-  // ------------------------------------------
+  // SANDBOXED JAVASCRIPT EXECUTION
 
   function runInSandbox(code) {
     if (activeRun) {
@@ -203,14 +192,12 @@
 
     iframe.setAttribute('sandbox', 'allow-scripts');
     iframe.setAttribute('aria-hidden', 'true');
-
     iframe.style.display = 'none';
 
-    let finished = false;
-    let port = null;
-    let timeout = null;
-
     const channel = new MessageChannel();
+
+    let finished = false;
+    let timeout = null;
 
     function cleanup() {
       if (finished) return;
@@ -219,16 +206,12 @@
 
       clearTimeout(timeout);
 
-      if (port) {
-        port.close();
-        port = null;
-      }
-
+      channel.port1.onmessage = null;
       channel.port1.close();
 
       iframe.remove();
 
-      if (activeRun?.runId === runId) {
+      if (activeRun && activeRun.runId === runId) {
         activeRun = null;
       }
     }
@@ -239,7 +222,7 @@
       if (timedOut) {
         appendOutput(
           'error',
-          'Execution timed out. Infinite loops or long-running code may be responsible.',
+          'Execution timed out. The code may contain an infinite loop.',
           runId
         );
 
@@ -248,6 +231,7 @@
 
         quote.textContent =
           '"That code took too long! Even a ninja needs a break."';
+
       } else if (status.textContent === 'SLASHING') {
         status.textContent = 'CLEAN RUN';
         status.className = 'text-[#39ff14]';
@@ -295,13 +279,16 @@
       (() => {
         'use strict';
 
+        let parentPort;
+
         const send = (type, message = '') => {
           try {
-            parentPort.postMessage({ type, message: String(message) });
+            parentPort?.postMessage({
+              type,
+              message: String(message)
+            });
           } catch {}
         };
-
-        let parentPort;
 
         window.addEventListener('message', async function initialize(event) {
           if (!event.ports || !event.ports[0]) return;
@@ -314,7 +301,7 @@
             if (typeof value === 'string') return value;
 
             try {
-              return JSON.stringify(value);
+              return JSON.stringify(value) ?? String(value);
             } catch {
               return '[Unserializable value]';
             }
@@ -348,7 +335,7 @@
             await execute(console);
 
           } catch (error) {
-            send('error', error.name + ': ' + error.message);
+            send('error', (error.name || 'Error') + ': ' + error.message);
           }
 
           send('done');
@@ -372,8 +359,6 @@
     iframe.onload = () => {
       if (finished || runId !== runCounter) return;
 
-      port = channel.port1;
-
       iframe.contentWindow.postMessage(
         { type: 'initialize' },
         '*',
@@ -383,25 +368,26 @@
 
     activeRun = { runId, cleanup };
 
-    document.body.appendChild(iframe);
-
-    iframe.srcdoc = srcDoc;
-
     timeout = setTimeout(() => finish(true), 1500);
+
+    document.body.appendChild(iframe);
+    iframe.srcdoc = srcDoc;
   }
 
-  // ------------------------------------------
-  // AUTO-IMPROVEMENT
-  // ------------------------------------------
+  // AUTOMATIC IMPROVEMENT
 
   function autoImprove() {
     let updated = editor.value;
     let applied = 0;
 
-    for (const rule of rules) {
-      if (rule.advisory || !rule.fix || !rule.test(updated)) {
-        continue;
-      }
+    const safeRules = rules.filter(rule =>
+      rule.id === 'debugger' &&
+      !rule.advisory &&
+      rule.fix
+    );
+
+    for (const rule of safeRules) {
+      if (!rule.test(updated)) continue;
 
       const next = rule.fix(updated);
 
@@ -421,20 +407,18 @@
       triggerSlash();
 
       quote.textContent =
-        `"I applied ${applied} upgrade${applied === 1 ? '' : 's'}! My blade gets sharper."`;
+        `"I applied ${applied} safe upgrade(s)! My blade gets sharper."`;
 
       output.textContent =
         `Sukibot applied ${applied} automatic patch(es). Run the code to test the changes.`;
 
     } else {
       quote.textContent =
-        '"No safe automatic improvements found. Let us inspect the code together."';
+        '"No verified automatic improvements found. Let us inspect the code together."';
     }
   }
 
-  // ------------------------------------------
   // EVENT LISTENERS
-  // ------------------------------------------
 
   $('runCodeBtn')?.addEventListener('click', () => {
     analyzeCode(editor.value);
@@ -462,9 +446,7 @@
     if (activeRun) activeRun.cleanup();
   });
 
-  // ------------------------------------------
   // INITIALIZATION
-  // ------------------------------------------
 
   saveLearnedCount();
   analyzeCode(editor.value);
