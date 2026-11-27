@@ -104,15 +104,7 @@
                     </button>
                 </div>
             </div>
-            <div id="chat-messages" class="h-36 sm:h-52 overflow-y-auto p-2.5 space-y-2 text-xs transition-all duration-200">
-                <div class="flex space-x-2">
-                    <div class="w-5 h-5 rounded-full bg-pink-600 shrink-0 flex items-center justify-center font-black text-[10px] text-white">🌸</div>
-                    <div class="bg-[#1e1136]/75 border border-pink-500/30 p-2 rounded-xl text-pink-100 leading-snug shadow-md">
-                        <span class="text-pink-400 font-bold uppercase tracking-wider block text-[9px] mb-0.5">Suki 🌸</span>
-                        Hello Master! Full-body stage mode is active—tap the arrow in my chat bar anytime to collapse or expand chat! ✨
-                    </div>
-                </div>
-            </div>
+            <div id="chat-messages" class="h-36 sm:h-52 overflow-y-auto p-2.5 space-y-2 text-xs transition-all duration-200"></div>
             <div class="p-2 bg-[#130b24]/75 border-t border-pink-500/20 shrink-0">
                 <form id="chat-form" class="flex space-x-1.5">
                     <input id="chat-input" type="text" placeholder="Talk to Suki..." autocomplete="off" class="flex-1 min-w-0 bg-[#1a0f30]/85 border border-pink-500/30 focus:border-pink-400 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none transition">
@@ -162,16 +154,40 @@
         let isGenerating = false;
         let isChatCollapsed = false;
         let webllmEngine = null;
-        let matrixCanvas, matrixCtx, matrixColumns, matrixDrops;
+        let matrixCanvas, matrixCtx, matrixColumns, matrixDrops, matrixIntervalId;
 
         const matrixChars = "SUKI0123456789🌸✨💖⭐💫";
         const DEFAULT_ENGINE = 'pollinations:openai';
         const STORAGE_KEY_ENGINE = 'suki_free_ai_engine';
+        const STORAGE_KEY_HISTORY = 'suki_chat_history_v1';
         const SUKI_SYSTEM_PROMPT = "You are Suki, a cheerful, witty, cute anime companion. Keep replies concise, expressive, and helpful.";
 
-        const chatHistory = [
-            { role: 'system', content: SUKI_SYSTEM_PROMPT }
-        ];
+        function loadHistory() {
+            const sysMsg = { role: 'system', content: SUKI_SYSTEM_PROMPT };
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY_HISTORY);
+                if (!raw) return [sysMsg];
+                const parsed = JSON.parse(raw);
+                if (!Array.isArray(parsed) || parsed.length === 0) return [sysMsg];
+                const filtered = parsed.filter(
+                    m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string'
+                );
+                return [sysMsg, ...filtered.slice(-16)];
+            } catch {
+                return [sysMsg];
+            }
+        }
+
+        const chatHistory = loadHistory();
+
+        function saveHistory() {
+            try {
+                const nonSystem = chatHistory.filter(m => m.role !== 'system').slice(-16);
+                localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(nonSystem));
+            } catch {
+                // Ignore storage quota errors
+            }
+        }
 
         function escapeHtml(str) {
             return String(str)
@@ -229,14 +245,34 @@
             matrixCtx = matrixCanvas.getContext('2d');
             resizeMatrix();
             window.addEventListener('resize', resizeMatrix);
-            setInterval(drawMatrix, 45);
+
+            const startMatrix = () => {
+                if (!matrixIntervalId) {
+                    matrixIntervalId = setInterval(drawMatrix, 45);
+                }
+            };
+            const stopMatrix = () => {
+                if (matrixIntervalId) {
+                    clearInterval(matrixIntervalId);
+                    matrixIntervalId = null;
+                }
+            };
+
+            startMatrix();
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    stopMatrix();
+                } else {
+                    startMatrix();
+                }
+            });
         }
 
         function resizeMatrix() {
             matrixCanvas.width = window.innerWidth;
             matrixCanvas.height = window.innerHeight;
             const fontSize = 14;
-            matrixColumns = Math.floor(matrixCanvas.width / fontSize);
+            matrixColumns = Math.max(1, Math.floor(matrixCanvas.width / fontSize));
             matrixDrops = Array.from({ length: matrixColumns }, () => Math.random() * 40);
         }
 
@@ -348,7 +384,7 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            const delta = clock.getDelta();
+            const delta = Math.min(clock.getDelta(), 0.05);
             const elapsed = clock.elapsedTime;
 
             if (currentVrm) {
@@ -405,28 +441,58 @@
             return row;
         }
 
-        async function queryPollinations(modelName) {
-            const res = await fetch('https://text.pollinations.ai/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: chatHistory.slice(-10),
-                    model: modelName,
-                    seed: Math.floor(Math.random() * 100000),
-                    jsonMode: false
-                })
-            });
-
-            if (!res.ok) {
-                throw new Error(`Free AI server returned status ${res.status}`);
+        function hydrateChatUI() {
+            const chatBox = document.getElementById('chat-messages');
+            chatBox.innerHTML = '';
+            const savedMessages = chatHistory.filter(m => m.role !== 'system');
+            if (savedMessages.length === 0) {
+                appendMessage('Suki 🌸', 'Hello Master! Full-body stage mode is active—tap the arrow in my chat bar anytime to collapse or expand chat! ✨');
+                return;
             }
+            for (const msg of savedMessages) {
+                if (msg.role === 'user') {
+                    appendMessage('You', msg.content, true);
+                } else if (msg.role === 'assistant') {
+                    appendMessage('Suki 🌸', msg.content, false);
+                }
+            }
+        }
 
-            const rawText = await res.text();
+        async function queryPollinations(modelName) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 25000);
+
             try {
-                const parsed = JSON.parse(rawText);
-                return parsed?.choices?.[0]?.message?.content || rawText;
-            } catch {
-                return rawText;
+                const res = await fetch('https://text.pollinations.ai/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal,
+                    body: JSON.stringify({
+                        messages: chatHistory.slice(-10),
+                        model: modelName,
+                        seed: Math.floor(Math.random() * 100000),
+                        jsonMode: false
+                    })
+                });
+
+                if (!res.ok) {
+                    throw new Error(`Free AI server returned status ${res.status}`);
+                }
+
+                const rawText = await res.text();
+                try {
+                    const parsed = JSON.parse(rawText);
+                    return parsed?.choices?.[0]?.message?.content || rawText;
+                } catch {
+                    return rawText;
+                }
+            } catch (err) {
+                if (err?.name === 'AbortError') {
+                    throw new Error('Request timed out after 25s');
+                }
+                throw err;
+            } finally {
+                clearTimeout(timeoutId);
             }
         }
 
@@ -473,6 +539,7 @@
 
                 reply = (reply || '').trim() || 'Hmm, my signal flickered! Try asking again ✨';
                 chatHistory.push({ role: 'assistant', content: reply });
+                saveHistory();
                 typingRow.remove();
                 appendMessage('Suki 🌸', reply);
             } catch (err) {
@@ -540,7 +607,8 @@
 
             document.getElementById('clear-chat-btn').addEventListener('click', () => {
                 chatHistory.length = 1;
-                document.getElementById('chat-messages').innerHTML = '';
+                localStorage.removeItem(STORAGE_KEY_HISTORY);
+                hydrateChatUI();
                 appendMessage('Suki 🌸', 'Memory wiped & chat cleared! Ready whenever you are ✨');
             });
 
@@ -599,7 +667,10 @@
                         );
                     }
 
-                    VRMUtils.rotateVRM0(loadedVrm);
+                    // VRM 0.x faces -Z by default; VRM 1.0 faces +Z
+                    if (loadedVrm.meta?.metaVersion === '0') {
+                        VRMUtils.rotateVRM0(loadedVrm);
+                    }
 
                     const avatar = loadedVrm.scene;
                     avatar.updateMatrixWorld(true);
@@ -653,6 +724,7 @@
         }
 
         updateEngineBadge();
+        hydrateChatUI();
         initMatrix();
         initStage();
         bindEvents();
