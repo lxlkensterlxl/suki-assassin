@@ -322,3 +322,63 @@
                     .replace(/```[\s\S]*?```/g, ' code block ')
                     .replace(/[*_`#>~|]/g, '')
                     .replace(/\[([^\]]+)\]\
+<script type="module"
+    <!-- ... everything above stays the same ... -->
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+        import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+        import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+        import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+
+        class SukiAudioRenderer {
+            // ... keep your existing constructor, loadVoices, populateVoiceDropdown, unlock, playChime, pickVoice ...
+
+            cleanForSpeech(raw) {
+                return String(raw || '')
+                    .replace(/```[\s\S]*?```/g, ' code block ')
+                    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                    .replace(/[*_`#>~|]/g, '')
+                    .trim();
+            }
+        }
+
+        // ... keep your scene / UI event listener setup here ...
+
+        const loadingEl = document.getElementById('stage-loading');
+        const loadingTextEl = document.getElementById('stage-loading-text');
+
+        function setLoadingStatus(msg) {
+            if (loadingTextEl) loadingTextEl.textContent = msg;
+        }
+
+        function hideLoading() {
+            if (loadingEl) loadingEl.classList.add('hidden');
+        }
+
+        async function initApp() {
+            const safetyTimer = setTimeout(() => {
+                setLoadingStatus('Taking longer than expected...');
+                hideLoading();
+            }, 12000);
+
+            try {
+                setLoadingStatus('Summoning Cute Anime Suki...');
+                // Put your default VRM load here if you have one, e.g.:
+                // await loadDefaultVRM();
+            } catch (err) {
+                console.error('SUKI init error:', err);
+                setLoadingStatus('Ready — Load a .VRM file to begin');
+            } finally {
+                clearTimeout(safetyTimer);
+                hideLoading();
+            }
+        }
+
+        initApp();
+    </script>
+</body>
+</html>
