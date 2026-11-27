@@ -23,40 +23,40 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .glass { background: rgba(15, 10, 26, 0.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+        .glass { background: rgba(15, 10, 26, 0.72); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
         .ninja-gradient { background: linear-gradient(135deg, #ec4899 0%, #a855f7 50%, #06b6d4 100%); }
         .ninja-glow { box-shadow: 0 0 25px rgba(236, 72, 153, 0.45); }
-        .prose-suki p { margin-bottom: 0.4rem; }
+        .prose-suki p { margin-bottom: 0.35rem; }
         .prose-suki p:last-child { margin-bottom: 0; }
         .prose-suki code { background: rgba(236, 72, 153, 0.18); padding: 0.1rem 0.3rem; border-radius: 0.25rem; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #0b0714; }
-        ::-webkit-scrollbar-thumb { background: #26173a; border-radius: 4px; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(236, 72, 153, 0.35); border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #ec4899; }
     </style>
 </head>
 <body class="bg-[#07040d] text-gray-100 flex h-[100dvh] overflow-hidden">
     <!-- Sidebar -->
-    <aside id="sidebar" class="w-14 bg-[#0c0717]/95 backdrop-blur-md border-r border-[#26153d] flex flex-col justify-between items-center py-3 shrink-0 z-30">
-        <div class="flex flex-col items-center space-y-4 w-full">
-            <div class="w-9 h-9 rounded-full ninja-gradient p-0.5 flex items-center justify-center ninja-glow cursor-pointer" title="SUKI - Anime AI">
+    <aside id="sidebar" class="w-12 sm:w-14 bg-[#0c0717]/95 backdrop-blur-md border-r border-[#26153d] flex flex-col justify-between items-center py-3 shrink-0 z-30">
+        <div class="flex flex-col items-center space-y-3.5 w-full">
+            <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full ninja-gradient p-0.5 flex items-center justify-center ninja-glow cursor-pointer" title="SUKI - Anime AI">
                 <div class="w-full h-full bg-[#0c0717] rounded-full flex items-center justify-center font-black text-pink-400 text-xs">🌸</div>
             </div>
-            <div class="w-8 h-[1px] bg-[#26153d]"></div>
-            <div class="flex flex-col space-y-3 items-center">
+            <div class="w-7 h-[1px] bg-[#26153d]"></div>
+            <div class="flex flex-col space-y-2.5 items-center">
                 <div class="w-8 h-8 bg-[#140b24]/90 rounded-xl border border-[#2d184d] flex items-center justify-center text-xs" title="Free AI Engine Ready">
                     <span id="ai-status-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 </div>
-                <div class="w-8 h-8 bg-[#140b24]/90 rounded-xl border border-[#2d184d] flex items-center justify-center text-xs" title="3D Stage Active">
-                    <span class="w-2 h-2 rounded-full bg-pink-400"></span>
-                </div>
+                <button id="reset-camera-btn" type="button" class="w-8 h-8 bg-[#140b24]/90 hover:bg-pink-600/20 rounded-xl border border-[#2d184d] flex items-center justify-center text-xs text-pink-300 transition" title="Center Full Body View">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                </button>
             </div>
         </div>
         <div class="flex flex-col space-y-2 items-center w-full px-1">
-            <button id="install-ios-btn" type="button" class="w-9 h-9 bg-emerald-600/10 text-emerald-300 rounded-xl border border-emerald-500/30 flex items-center justify-center transition hover:bg-emerald-600/20" title="iPhone PWA Install Tip">
+            <button id="install-ios-btn" type="button" class="w-8 h-8 sm:w-9 sm:h-9 bg-emerald-600/10 text-emerald-300 rounded-xl border border-emerald-500/30 flex items-center justify-center transition hover:bg-emerald-600/20" title="iPhone PWA Install Tip">
                 <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
             </button>
-            <button id="open-settings-btn" type="button" class="w-9 h-9 bg-pink-600/10 text-pink-300 rounded-xl border border-pink-500/30 flex items-center justify-center transition hover:bg-pink-600/20" title="AI Engine Settings">
+            <button id="open-settings-btn" type="button" class="w-8 h-8 sm:w-9 sm:h-9 bg-pink-600/10 text-pink-300 rounded-xl border border-pink-500/30 flex items-center justify-center transition hover:bg-pink-600/20" title="AI Engine Settings">
                 <svg class="w-4 h-4 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
             </button>
         </div>
@@ -72,48 +72,51 @@
             </div>
         </div>
 
-        <!-- Top Bar -->
-        <div class="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
-            <div class="glass px-4 py-2 rounded-2xl border border-pink-500/40 flex items-center space-x-3 shadow-2xl pointer-events-auto shrink-0">
-                <span class="w-3.5 h-3.5 rounded-full bg-pink-500 animate-ping"></span>
-                <div>
-                    <span class="font-black text-sm text-white tracking-wider">SUKI</span>
-                    <span id="active-engine-badge" class="text-[11px] text-emerald-400 ml-2 font-mono font-semibold">FREE AI READY</span>
-                </div>
+        <!-- Top Bar (Compact single row so Suki's head stays clear) -->
+        <div class="absolute top-3 left-3 right-3 z-20 flex items-center justify-between gap-2 pointer-events-none">
+            <div class="glass px-3 py-1.5 rounded-2xl border border-pink-500/40 flex items-center space-x-2 shadow-xl pointer-events-auto">
+                <span class="w-2.5 h-2.5 rounded-full bg-pink-500 animate-ping"></span>
+                <span class="font-black text-xs sm:text-sm text-white tracking-wider">SUKI</span>
+                <span id="active-engine-badge" class="text-[10px] text-emerald-400 font-mono font-semibold hidden xs:inline">FREE AI READY</span>
             </div>
-            <div class="glass p-1.5 rounded-2xl border border-purple-500/40 flex items-center space-x-1.5 pointer-events-auto shadow-2xl shrink-0">
-                <label for="vrm-file-input" class="cursor-pointer hover:bg-pink-600/20 text-pink-200 text-xs px-3 py-1.5 rounded-xl transition flex items-center space-x-1.5">
-                    <svg class="w-4 h-4 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+            <div class="glass p-1 rounded-2xl border border-purple-500/40 flex items-center pointer-events-auto shadow-xl">
+                <label for="vrm-file-input" class="cursor-pointer hover:bg-pink-600/20 text-pink-200 text-xs px-2.5 py-1 rounded-xl transition flex items-center space-x-1.5">
+                    <svg class="w-3.5 h-3.5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                     <span>Load .VRM</span>
                 </label>
                 <input id="vrm-file-input" type="file" accept=".vrm" class="hidden">
             </div>
         </div>
 
-        <!-- Chat Sub-Window -->
-        <div id="chat-subwindow" class="absolute bottom-4 right-4 w-72 sm:w-80 h-[350px] bg-[#0d071b]/95 backdrop-blur-xl border border-pink-500/40 rounded-2xl shadow-2xl flex flex-col z-40 overflow-hidden">
-            <div class="px-3 py-2 bg-[#170c2e]/95 border-b border-pink-500/20 flex items-center justify-between">
+        <!-- Translucent & Collapsible Chat Sub-Window -->
+        <div id="chat-subwindow" class="absolute bottom-3 left-3 right-3 sm:left-auto sm:right-4 sm:w-80 bg-[#0d071b]/65 backdrop-blur-md border border-pink-500/35 rounded-2xl shadow-2xl flex flex-col z-40 overflow-hidden transition-all duration-200">
+            <div class="px-3 py-1.5 bg-[#170c2e]/75 border-b border-pink-500/20 flex items-center justify-between shrink-0">
                 <div class="flex items-center space-x-2">
-                    <div class="w-5 h-5 rounded-full ninja-gradient flex items-center justify-center font-black text-[9px] text-white">🌸</div>
-                    <span class="font-bold text-xs text-pink-100 tracking-wide">SUKI CHAT</span>
+                    <div class="w-4 h-4 rounded-full ninja-gradient flex items-center justify-center font-black text-[8px] text-white">🌸</div>
+                    <span class="font-bold text-[11px] text-pink-100 tracking-wide">SUKI CHAT</span>
                 </div>
-                <button id="clear-chat-btn" type="button" class="p-1 text-pink-300/70 hover:text-pink-300 transition" title="Clear Chat">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                </button>
+                <div class="flex items-center space-x-1">
+                    <button id="toggle-chat-btn" type="button" class="p-1 text-pink-300/80 hover:text-white transition" title="Minimize / Expand Chat">
+                        <svg id="toggle-chat-icon" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <button id="clear-chat-btn" type="button" class="p-1 text-pink-300/70 hover:text-pink-300 transition" title="Clear Chat">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
             </div>
-            <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2.5 text-xs">
+            <div id="chat-messages" class="h-36 sm:h-52 overflow-y-auto p-2.5 space-y-2 text-xs transition-all duration-200">
                 <div class="flex space-x-2">
-                    <div class="w-6 h-6 rounded-full bg-pink-600 shrink-0 flex items-center justify-center font-black text-xs text-white">🌸</div>
-                    <div class="bg-[#1e1136]/90 border border-pink-500/30 p-2.5 rounded-xl text-pink-100 leading-snug shadow-md">
-                        <span class="text-pink-400 font-bold uppercase tracking-wider block text-[10px] mb-0.5">Suki 🌸</span>
-                        Hello Master! My free AI brain is online with zero setup needed—ask me anything! ✨
+                    <div class="w-5 h-5 rounded-full bg-pink-600 shrink-0 flex items-center justify-center font-black text-[10px] text-white">🌸</div>
+                    <div class="bg-[#1e1136]/75 border border-pink-500/30 p-2 rounded-xl text-pink-100 leading-snug shadow-md">
+                        <span class="text-pink-400 font-bold uppercase tracking-wider block text-[9px] mb-0.5">Suki 🌸</span>
+                        Hello Master! Full-body stage mode is active—tap the arrow in my chat bar anytime to collapse or expand chat! ✨
                     </div>
                 </div>
             </div>
-            <div class="p-2.5 bg-[#130b24]/90 border-t border-pink-500/20">
-                <form id="chat-form" class="flex space-x-2">
-                    <input id="chat-input" type="text" placeholder="Talk to Suki..." autocomplete="off" class="flex-1 bg-[#1a0f30] border border-pink-500/30 focus:border-pink-400 rounded-xl px-3 py-2 text-xs text-white focus:outline-none transition">
-                    <button id="chat-send-btn" type="submit" class="ninja-gradient hover:opacity-90 px-3.5 py-2 rounded-xl font-bold text-xs text-white shadow-lg transition disabled:opacity-40">Send</button>
+            <div class="p-2 bg-[#130b24]/75 border-t border-pink-500/20 shrink-0">
+                <form id="chat-form" class="flex space-x-1.5">
+                    <input id="chat-input" type="text" placeholder="Talk to Suki..." autocomplete="off" class="flex-1 min-w-0 bg-[#1a0f30]/85 border border-pink-500/30 focus:border-pink-400 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none transition">
+                    <button id="chat-send-btn" type="submit" class="ninja-gradient hover:opacity-90 px-3 py-1.5 rounded-xl font-bold text-xs text-white shadow-lg transition disabled:opacity-40 shrink-0">Send</button>
                 </form>
             </div>
         </div>
@@ -157,6 +160,7 @@
         let sukiAvatarGroup, sukiMouth, sukiHairBunsGroup;
         let isAvatarSpeaking = false;
         let isGenerating = false;
+        let isChatCollapsed = false;
         let webllmEngine = null;
         let matrixCanvas, matrixCtx, matrixColumns, matrixDrops;
 
@@ -197,6 +201,29 @@
             if (badge) badge.textContent = labels[engine] || 'FREE AI READY';
         }
 
+        // Frame full body vertically regardless of portrait/landscape aspect ratio
+        function frameFullBody(height = 1.7) {
+            const container = document.getElementById('vrm-canvas-holder');
+            const aspect = Math.max(container.clientWidth, 1) / Math.max(container.clientHeight, 1);
+            const fovRad = THREE.MathUtils.degToRad(camera.fov);
+
+            // Calculate distance needed so full height + padding fits in vertical FOV
+            const paddedHeight = height * 1.32;
+            let distance = (paddedHeight / 2) / Math.tan(fovRad / 2);
+
+            // On very narrow screens, pull slightly further back so outstretched arms fit too
+            if (aspect < 0.65) {
+                distance *= 1.18;
+            }
+
+            // Shift look-at target slightly lower so her feet clear the bottom chat bar
+            const targetY = height * 0.44;
+            controls.target.set(0, targetY, 0);
+            camera.position.set(0, targetY + 0.12, distance);
+            camera.lookAt(0, targetY, 0);
+            controls.update();
+        }
+
         function initMatrix() {
             matrixCanvas = document.getElementById('matrix-canvas');
             matrixCtx = matrixCanvas.getContext('2d');
@@ -234,37 +261,53 @@
             const hairMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.4 });
             const outfitMat = new THREE.MeshStandardMaterial({ color: 0x1e1136, roughness: 0.5 });
 
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.45, 24, 24), skinMat);
-            head.position.y = 1.45;
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 24, 24), skinMat);
+            head.position.y = 1.48;
             sukiAvatarGroup.add(head);
 
             sukiHairBunsGroup = new THREE.Group();
-            const leftBun = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), hairMat);
-            leftBun.position.set(-0.46, 1.72, -0.05);
-            const rightBun = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), hairMat);
-            rightBun.position.set(0.46, 1.72, -0.05);
+            const leftBun = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16), hairMat);
+            leftBun.position.set(-0.34, 1.68, -0.04);
+            const rightBun = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16), hairMat);
+            rightBun.position.set(0.34, 1.68, -0.04);
             sukiHairBunsGroup.add(leftBun, rightBun);
             sukiAvatarGroup.add(sukiHairBunsGroup);
 
             const eyeMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
-            const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), eyeMat);
-            leftEye.position.set(-0.15, 1.47, 0.41);
-            const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), eyeMat);
-            rightEye.position.set(0.15, 1.47, 0.41);
+            const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 12), eyeMat);
+            leftEye.position.set(-0.11, 1.50, 0.29);
+            const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 12), eyeMat);
+            rightEye.position.set(0.11, 1.50, 0.29);
             sukiAvatarGroup.add(leftEye, rightEye);
 
             sukiMouth = new THREE.Mesh(
-                new THREE.BoxGeometry(0.12, 0.04, 0.04),
+                new THREE.BoxGeometry(0.09, 0.03, 0.03),
                 new THREE.MeshBasicMaterial({ color: 0xf43f5e })
             );
-            sukiMouth.position.set(0, 1.31, 0.43);
+            sukiMouth.position.set(0, 1.38, 0.30);
             sukiAvatarGroup.add(sukiMouth);
 
-            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.34, 0.85, 20), outfitMat);
-            body.position.y = 0.65;
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.28, 0.62, 20), outfitMat);
+            body.position.y = 0.88;
             sukiAvatarGroup.add(body);
 
+            // Legs & boots so fallback Suki is also full-body
+            const legGeo = new THREE.CylinderGeometry(0.065, 0.055, 0.56, 14);
+            const leftLeg = new THREE.Mesh(legGeo, skinMat);
+            leftLeg.position.set(-0.10, 0.30, 0);
+            const rightLeg = new THREE.Mesh(legGeo, skinMat);
+            rightLeg.position.set(0.10, 0.30, 0);
+
+            const bootGeo = new THREE.CylinderGeometry(0.065, 0.075, 0.22, 14);
+            const leftBoot = new THREE.Mesh(bootGeo, hairMat);
+            leftBoot.position.set(-0.10, 0.11, 0.02);
+            const rightBoot = new THREE.Mesh(bootGeo, hairMat);
+            rightBoot.position.set(0.10, 0.11, 0.02);
+
+            sukiAvatarGroup.add(leftLeg, rightLeg, leftBoot, rightBoot);
+
             scene.add(sukiAvatarGroup);
+            frameFullBody(1.8);
             setStageLoading(false);
         }
 
@@ -276,7 +319,6 @@
             const width = Math.max(container.clientWidth, 1);
             const height = Math.max(container.clientHeight, 1);
             camera = new THREE.PerspectiveCamera(35, width / height, 0.1, 100);
-            camera.position.set(0, 1.35, 2.6);
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(width, height);
@@ -284,7 +326,6 @@
             container.appendChild(renderer.domElement);
 
             controls = new OrbitControls(camera, renderer.domElement);
-            controls.target.set(0, 1.25, 0);
             controls.enableDamping = true;
 
             const ambient = new THREE.AmbientLight(0xffffff, 0.85);
@@ -311,7 +352,6 @@
             const elapsed = clock.elapsedTime;
 
             if (currentVrm) {
-                // Subtle natural blink & lip-sync for VRM avatars
                 if (currentVrm.expressionManager) {
                     const blinkCycle = Math.sin(elapsed * 0.9);
                     currentVrm.expressionManager.setValue('blink', blinkCycle > 0.985 ? 1.0 : 0.0);
@@ -320,7 +360,7 @@
                 }
                 currentVrm.update(delta);
             } else if (sukiAvatarGroup) {
-                sukiAvatarGroup.position.y = Math.sin(elapsed * 2.2) * 0.03;
+                sukiAvatarGroup.position.y = Math.sin(elapsed * 2.2) * 0.025;
                 if (sukiHairBunsGroup) {
                     sukiHairBunsGroup.rotation.z = Math.sin(elapsed * 3) * 0.05;
                 }
@@ -334,7 +374,17 @@
             renderer.render(scene, camera);
         }
 
+        function expandChatIfCollapsed() {
+            if (!isChatCollapsed) return;
+            isChatCollapsed = false;
+            const msgBox = document.getElementById('chat-messages');
+            const icon = document.getElementById('toggle-chat-icon');
+            msgBox.classList.remove('hidden');
+            icon.style.transform = 'rotate(0deg)';
+        }
+
         function appendMessage(sender, text, isUser = false) {
+            expandChatIfCollapsed();
             const chatBox = document.getElementById('chat-messages');
             const row = document.createElement('div');
             row.className = `flex space-x-2 ${isUser ? 'justify-end' : ''}`;
@@ -343,10 +393,10 @@
             const rendered = window.marked ? window.marked.parse(safeMarkdown) : safeMarkdown;
 
             row.innerHTML = isUser
-                ? `<div class="bg-pink-600/30 border border-pink-500/40 p-2.5 rounded-xl text-white leading-snug max-w-[85%]">${rendered}</div>`
-                : `<div class="w-6 h-6 rounded-full bg-pink-600 shrink-0 flex items-center justify-center font-black text-xs text-white">🌸</div>
-                   <div class="bg-[#1e1136]/90 border border-pink-500/30 p-2.5 rounded-xl text-pink-100 leading-snug shadow-md prose-suki max-w-[85%]">
-                       <span class="text-pink-400 font-bold uppercase tracking-wider block text-[10px] mb-0.5">${escapeHtml(sender)}</span>
+                ? `<div class="bg-pink-600/35 border border-pink-500/40 p-2 rounded-xl text-white leading-snug max-w-[85%]">${rendered}</div>`
+                : `<div class="w-5 h-5 rounded-full bg-pink-600 shrink-0 flex items-center justify-center font-black text-[10px] text-white">🌸</div>
+                   <div class="bg-[#1e1136]/80 border border-pink-500/30 p-2 rounded-xl text-pink-100 leading-snug shadow-md prose-suki max-w-[85%]">
+                       <span class="text-pink-400 font-bold uppercase tracking-wider block text-[9px] mb-0.5">${escapeHtml(sender)}</span>
                        ${rendered}
                    </div>`;
 
@@ -372,7 +422,6 @@
             }
 
             const rawText = await res.text();
-            // Handle either plain text or OpenAI-style JSON responses
             try {
                 const parsed = JSON.parse(rawText);
                 return parsed?.choices?.[0]?.message?.content || rawText;
@@ -433,7 +482,6 @@
                 setStageLoading(false);
                 isGenerating = false;
                 if (sendBtn) sendBtn.disabled = false;
-                // Keep mouth animated briefly after reply lands
                 setTimeout(() => { isAvatarSpeaking = false; }, 1600);
             }
         }
@@ -441,6 +489,24 @@
         function bindEvents() {
             const modal = document.getElementById('settings-modal');
             const engineSelect = document.getElementById('ai-engine-select');
+
+            document.getElementById('reset-camera-btn').addEventListener('click', () => {
+                if (currentVrm) {
+                    const bounds = new THREE.Box3().setFromObject(currentVrm.scene);
+                    const size = bounds.getSize(new THREE.Vector3());
+                    frameFullBody(size.y || 1.7);
+                } else {
+                    frameFullBody(1.8);
+                }
+            });
+
+            document.getElementById('toggle-chat-btn').addEventListener('click', () => {
+                isChatCollapsed = !isChatCollapsed;
+                const msgBox = document.getElementById('chat-messages');
+                const icon = document.getElementById('toggle-chat-icon');
+                msgBox.classList.toggle('hidden', isChatCollapsed);
+                icon.style.transform = isChatCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+            });
 
             document.getElementById('install-ios-btn').addEventListener('click', () => {
                 appendMessage('Suki 🌸', 'To install me on iPhone: tap the **Share** button in Safari and choose **Add to Home Screen**! 📱✨');
@@ -473,7 +539,7 @@
             });
 
             document.getElementById('clear-chat-btn').addEventListener('click', () => {
-                chatHistory.length = 1; // Keep system prompt
+                chatHistory.length = 1;
                 document.getElementById('chat-messages').innerHTML = '';
                 appendMessage('Suki 🌸', 'Memory wiped & chat cleared! Ready whenever you are ✨');
             });
@@ -533,7 +599,6 @@
                         );
                     }
 
-                    // Ensure VRM 0.x models rotate to face +Z toward the camera
                     VRMUtils.rotateVRM0(loadedVrm);
 
                     const avatar = loadedVrm.scene;
@@ -572,11 +637,7 @@
 
                     const finalBounds = new THREE.Box3().setFromObject(avatar);
                     const finalSize = finalBounds.getSize(new THREE.Vector3());
-                    const targetY = Math.max(finalSize.y * 0.52, 0.5);
-                    controls.target.set(0, targetY, 0);
-                    camera.position.set(0, targetY + 0.45, Math.max(2.8, finalSize.y * 2.0));
-                    camera.lookAt(0, targetY, 0);
-                    controls.update();
+                    frameFullBody(finalSize.y);
 
                     appendMessage('Suki 🌸', `Successfully loaded **${file.name}**! ✨`);
                 } catch (err) {
