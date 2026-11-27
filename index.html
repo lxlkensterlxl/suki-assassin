@@ -627,4 +627,66 @@
         });
     </script>
 </body>
+async function loadVrmFromArrayBuffer(buffer, label = 'suki.vrm') {
+    const statusLoader = document.getElementById('stage-loading');
+    const setLoading = (show, text = '') => {
+        if (!statusLoader) return;
+        statusLoader.style.display = show ? 'flex' : 'none';
+        const span = statusLoader.querySelector('span');
+        if (span && text) span.textContent = text;
+    };
+
+    if (typeof THREE === 'undefined' || typeof THREE.GLTFLoader === 'undefined') {
+        setLoading(false);
+        appendSukiReply('⚠️ `THREE.GLTFLoader` failed to load from CDN.');
+        return;
+    }
+
+    setLoading(true, `Loading ${label}...`);
+
+    const loader = new THREE.GLTFLoader();
+    loader.parse(
+        buffer,
+        './',
+        async (gltf) => {
+            try {
+                const VRMClass = THREE.VRM || window.VRM;
+                if (VRMClass?.from) {
+                    const vrm = await VRMClass.from(gltf);
+                    setAvatarModel(vrm.scene, vrm);
+                    appendSukiReply(`🎉 Loaded VRM model "${escapeHtml(label)}"!`);
+                } else {
+                    setAvatarModel(gltf.scene, null);
+                    appendSukiReply(`✨ Loaded 3D model "${escapeHtml(label)}" (mesh mode).`);
+                }
+            } catch (err) {
+                console.warn('VRM parse fallback:', err);
+                setAvatarModel(gltf.scene, null);
+                appendSukiReply(`✨ Loaded "${escapeHtml(label)}" in mesh fallback mode.`);
+            } finally {
+                setLoading(false);
+            }
+        },
+        (err) => {
+            console.error('GLTF/VRM parse error:', err);
+            setLoading(false);
+            appendSukiReply(`⚠️ Error parsing "${escapeHtml(label)}".`);
+        }
+    );
+}
+
+async function autoLoadSukiVrm(url = './suki.vrm') {
+    try {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) {
+            console.info(`No ${url} found (${res.status}), keeping fallback avatar.`);
+            return;
+        }
+        const buffer = await res.arrayBuffer();
+        await loadVrmFromArrayBuffer(buffer, url);
+    } catch (err) {
+        console.info(`Auto-load for ${url} skipped/failed:`, err);
+    }
+}
+
 </html>
