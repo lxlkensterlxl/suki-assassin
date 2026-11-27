@@ -10,15 +10,10 @@
     <link rel="apple-touch-icon" href="https://placehold.co/192x192/0c0717/ec4899?text=🌸+SUKI">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
-    <script type="importmap">
-    {
-        "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-            "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.min.js"
-        }
-    }
-    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@0.6.4/lib/three-vrm.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -67,7 +62,7 @@
         <div id="vrm-canvas-holder" class="absolute inset-0 w-full h-full z-10">
             <div id="stage-loading" class="absolute inset-0 flex flex-col items-center justify-center bg-[#090512]/90 z-20 text-xs text-pink-300 space-y-3">
                 <div class="w-8 h-8 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
-                <span id="stage-loading-text" class="font-bold tracking-widest uppercase">Summoning Cute Anime Suki...</span>
+                <span class="font-bold tracking-widest uppercase">Summoning Cute Anime Suki...</span>
             </div>
         </div>
 
@@ -85,7 +80,7 @@
                     <svg class="w-4 h-4 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                     <span>Load .VRM</span>
                 </label>
-                <input id="vrm-file-input" type="file" accept=".vrm" class="hidden">
+                <input id="vrm-file-input" type="file" accept=".vrm,.gltf,.glb,model/gltf-binary,application/octet-stream" class="hidden">
             </div>
         </div>
 
@@ -142,12 +137,7 @@
         </div>
     </div>
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-        import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
-
+    <script>
         let scene, camera, renderer, clock, controls, currentVrm;
         let sukiAvatarGroup, sukiMouth, sukiHairBunsGroup;
         let isAvatarSpeaking = false;
@@ -166,13 +156,6 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#39;');
-        }
-
-        function setStageLoading(visible, message = 'Summoning Cute Anime Suki...') {
-            const overlay = document.getElementById('stage-loading');
-            const label = document.getElementById('stage-loading-text');
-            if (label) label.textContent = message;
-            if (overlay) overlay.classList.toggle('hidden', !visible);
         }
 
         function initMatrix() {
@@ -243,7 +226,7 @@
             sukiAvatarGroup.add(body);
 
             scene.add(sukiAvatarGroup);
-            setStageLoading(false);
+            document.getElementById('stage-loading').classList.add('hidden');
         }
 
         function initStage() {
@@ -251,17 +234,15 @@
             scene = new THREE.Scene();
             clock = new THREE.Clock();
 
-            const width = Math.max(container.clientWidth, 1);
-            const height = Math.max(container.clientHeight, 1);
-            camera = new THREE.PerspectiveCamera(35, width / height, 0.1, 100);
+            camera = new THREE.PerspectiveCamera(35, container.clientWidth / container.clientHeight, 0.1, 100);
             camera.position.set(0, 1.35, 2.6);
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(width, height);
+            renderer.setSize(container.clientWidth, container.clientHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             container.appendChild(renderer.domElement);
 
-            controls = new OrbitControls(camera, renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.target.set(0, 1.25, 0);
             controls.enableDamping = true;
 
@@ -273,11 +254,9 @@
             createFallbackSuki();
 
             window.addEventListener('resize', () => {
-                const w = Math.max(container.clientWidth, 1);
-                const h = Math.max(container.clientHeight, 1);
-                camera.aspect = w / h;
+                camera.aspect = container.clientWidth / container.clientHeight;
                 camera.updateProjectionMatrix();
-                renderer.setSize(w, h);
+                renderer.setSize(container.clientWidth, container.clientHeight);
             });
 
             animate();
@@ -285,11 +264,10 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            const delta = clock.getDelta();
-            const elapsed = clock.elapsedTime;
+            const elapsed = clock.getElapsedTime();
 
             if (currentVrm) {
-                currentVrm.update(delta);
+                currentVrm.update(clock.getDelta());
             } else if (sukiAvatarGroup) {
                 sukiAvatarGroup.position.y = Math.sin(elapsed * 2.2) * 0.03;
                 if (sukiHairBunsGroup) {
@@ -310,7 +288,7 @@
             const row = document.createElement('div');
             row.className = `flex space-x-2 ${isUser ? 'justify-end' : ''}`;
 
-            const rendered = window.marked ? window.marked.parse(text) : escapeHtml(text);
+            const rendered = marked ? marked.parse(text) : escapeHtml(text);
             row.innerHTML = isUser
                 ? `<div class="bg-pink-600/30 border border-pink-500/40 p-2.5 rounded-xl text-white leading-snug max-w-[85%]">${rendered}</div>`
                 : `<div class="w-6 h-6 rounded-full bg-pink-600 shrink-0 flex items-center justify-center font-black text-xs text-white">🌸</div>
@@ -345,9 +323,6 @@
                     }
                 );
                 const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data?.error?.message || `Request failed with status ${res.status}`);
-                }
                 const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Hmm, I lost my train of thought! ✨';
                 appendMessage('Suki 🌸', reply);
             } catch (err) {
@@ -393,115 +368,20 @@
                 appendMessage('Suki 🌸', 'Chat cleared! Ready whenever you are ✨');
             });
 
-            document.getElementById('vrm-file-input').addEventListener('change', async (e) => {
+            document.getElementById('vrm-file-input').addEventListener('change', (e) => {
                 const file = e.target.files?.[0];
-                e.target.value = '';
-                if (!file) return;
-
-                if (!file.name.toLowerCase().endsWith('.vrm')) {
-                    appendMessage('Suki 🌸', 'Please select a .vrm avatar file.');
-                    return;
-                }
-
-                const maxBytes = 500 * 1024 * 1024;
-                if (file.size === 0 || file.size > maxBytes) {
-                    appendMessage('Suki 🌸', file.size === 0
-                        ? 'That VRM file is empty.'
-                        : 'That VRM is larger than the 500 MB upload limit.');
-                    return;
-                }
-
-                setStageLoading(true, `Reading ${file.name}...`);
+                if (!file || !THREE.VRM) return;
                 const url = URL.createObjectURL(file);
-                let loadedVrm = null;
-
-                try {
-                    const loader = new GLTFLoader();
-                    loader.register((parser) => new VRMLoaderPlugin(parser));
-
-                    console.info('[SUKI] Loading VRM:', {
-                        name: file.name,
-                        size: file.size,
-                        type: file.type
+                const loader = new THREE.GLTFLoader();
+                loader.load(url, (gltf) => {
+                    THREE.VRM.from(gltf).then((vrm) => {
+                        if (currentVrm) scene.remove(currentVrm.scene);
+                        if (sukiAvatarGroup) scene.remove(sukiAvatarGroup);
+                        currentVrm = vrm;
+                        scene.add(vrm.scene);
+                        URL.revokeObjectURL(url);
                     });
-
-                    const gltf = await loader.loadAsync(url, (progress) => {
-                        if (progress.total > 0) {
-                            const percent = Math.round((progress.loaded / progress.total) * 100);
-                            setStageLoading(true, `Loading Suki... ${percent}%`);
-                        } else {
-                            setStageLoading(true, 'Parsing VRM 1.0 avatar...');
-                        }
-                    });
-
-                    loadedVrm = gltf.userData?.vrm;
-                    if (!loadedVrm?.scene) {
-                        const extensions = gltf.parser?.json?.extensionsUsed || [];
-                        console.error('[SUKI] GLTF loaded, but VRM plugin did not create gltf.userData.vrm.', {
-                            extensionsUsed: extensions,
-                            userData: gltf.userData
-                        });
-                        throw new Error(
-                            `The file opened as glTF, but no VRM avatar was detected. VRM extensions found: ${extensions.join(', ') || 'none'}. Make sure this is an exported VRM 1.0 file, not a .glb renamed to .vrm.`
-                        );
-                    }
-
-                    // Do not remove the existing avatar until the new one has parsed and validated.
-                    const avatar = loadedVrm.scene;
-                    avatar.updateMatrixWorld(true);
-                    const initialBounds = new THREE.Box3().setFromObject(avatar);
-                    const initialSize = initialBounds.getSize(new THREE.Vector3());
-                    const maxDimension = Math.max(initialSize.x, initialSize.y, initialSize.z);
-
-                    if (!Number.isFinite(maxDimension) || maxDimension <= 0) {
-                        throw new Error('The VRM loaded, but its model has no measurable geometry.');
-                    }
-
-                    // Normalize to roughly 1.7 world units and put the feet on y=0.
-                    avatar.scale.multiplyScalar(1.7 / maxDimension);
-                    avatar.updateMatrixWorld(true);
-                    const bounds = new THREE.Box3().setFromObject(avatar);
-                    const center = bounds.getCenter(new THREE.Vector3());
-                    avatar.position.x -= center.x;
-                    avatar.position.y -= bounds.min.y;
-                    avatar.position.z -= center.z;
-                    avatar.updateMatrixWorld(true);
-
-                    // VRM 1.0 faces +Z, which is toward this camera setup.
-                    if (currentVrm) {
-                        scene.remove(currentVrm.scene);
-                        VRMUtils.deepDispose(currentVrm.scene);
-                        currentVrm = null;
-                    }
-                    if (sukiAvatarGroup) {
-                        scene.remove(sukiAvatarGroup);
-                        sukiAvatarGroup = null;
-                        sukiMouth = null;
-                        sukiHairBunsGroup = null;
-                    }
-
-                    currentVrm = loadedVrm;
-                    scene.add(avatar);
-
-                    // Frame the full model based on its normalized height.
-                    const finalBounds = new THREE.Box3().setFromObject(avatar);
-                    const finalSize = finalBounds.getSize(new THREE.Vector3());
-                    const targetY = Math.max(finalSize.y * 0.52, 0.5);
-                    controls.target.set(0, targetY, 0);
-                    camera.position.set(0, targetY + 0.45, Math.max(2.8, finalSize.y * 2.0));
-                    camera.lookAt(0, targetY, 0);
-                    controls.update();
-
-                    console.info('[SUKI] VRM loaded successfully:', loadedVrm);
-                    appendMessage('Suki 🌸', `Successfully loaded **${escapeHtml(file.name)}**! ✨`);
-                } catch (err) {
-                    console.error('[SUKI] VRM load failed:', err);
-                    const detail = err?.message || String(err) || 'Unknown loading error';
-                    appendMessage('Suki 🌸', `Couldn't load **${escapeHtml(file.name)}**: ${escapeHtml(detail)}`);
-                } finally {
-                    setStageLoading(false);
-                    URL.revokeObjectURL(url);
-                }
+                });
             });
         }
 
