@@ -1,476 +1,580 @@
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-        import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 
-        // ==========================================
-        // SUKI AUDIO RENDERER (Web Audio + TTS + Visemes)
-        // ==========================================
-        class SukiAudioRenderer {
-            constructor() {
-                this.ctx = null;
-                this.enabled = localStorage.getItem('suki_voice_enabled') !== 'false';
-                this.pitch = parseFloat(localStorage.getItem('suki_voice_pitch') || '1.22');
-                this.rate = parseFloat(localStorage.getItem('suki_voice_rate') || '1.05');
-                this.preferredVoiceURI = localStorage.getItem('suki_voice_uri') || 'auto';
-                this.voices = [];
-                this.isSpeaking = false;
-                this.currentViseme = 'aa';
-                this.mouthEnergy = 0;
-                this.targetEnergy = 0;
-                this.fallbackTimer = null;
-                this.syllableTimer = null;
-                this._ttsPrimed = false;
+    // ==========================================
+    // SUKI AUDIO RENDERER (Web Audio + TTS + Visemes)
+    // ==========================================
+    class SukiAudioRenderer {
+        constructor() {
+            this.ctx = null;
+            this.enabled = localStorage.getItem('suki_voice_enabled') !== 'false';
+            this.pitch = parseFloat(localStorage.getItem('suki_voice_pitch') || '1.22');
+            this.rate = parseFloat(localStorage.getItem('suki_voice_rate') || '1.05');
+            this.preferredVoiceURI = localStorage.getItem('suki_voice_uri') || 'auto';
+            this.voices = [];
+            this.isSpeaking = false;
+            this.currentViseme = 'aa';
+            this.mouthEnergy = 0;
+            this.targetEnergy = 0;
+            this.fallbackTimer = null;
+            this.syllableTimer = null;
+            this._ttsPrimed = false;
+            this._speakToken = 0;
 
-                if ('speechSynthesis' in window) {
-                    this.loadVoices();
-                    window.speechSynthesis.onvoiceschanged = () => this.loadVoices();
-                }
+            if ('speechSynthesis' in window) {
+                this.loadVoices();
+                window.speechSynthesis.onvoiceschanged = () => this.loadVoices();
             }
+        }
 
-            loadVoices() {
-                if (!('speechSynthesis' in window)) return;
-                this.voices = window.speechSynthesis.getVoices() || [];
-                this.populateVoiceDropdown();
+        loadVoices() {
+            if (!('speechSynthesis' in window)) return;
+            this.voices = window.speechSynthesis.getVoices() || [];
+            this.populateVoiceDropdown();
+        }
+
+        populateVoiceDropdown() {
+            const select = document.getElementById('voice-select');
+            if (!select) return;
+            const current = this.preferredVoiceURI;
+            select.innerHTML = '<option value="auto">Auto (Best Cute Female Voice)</option>';
+            for (const v of this.voices) {
+                const opt = document.createElement('option');
+                opt.value = v.voiceURI;
+                opt.textContent = `${v.name} (${v.lang})`;
+                select.appendChild(opt);
             }
-
-            populateVoiceDropdown() {
-                const select = document.getElementById('voice-select');
-                if (!select) return;
-                const current = this.preferredVoiceURI;
-                select.innerHTML = '<option value="auto">Auto (Best Cute Female Voice)</option>';
-                for (const v of this.voices) {
-                    const opt = document.createElement('option');
-                    opt.value = v.voiceURI;
-                    opt.textContent = `${v.name} (${v.lang})`;
-                    select.appendChild(opt);
-                }
+            if ([...select.options].some(o => o.value === current)) {
                 select.value = current;
+            } else {
+                select.value = 'auto';
             }
+        }
 
-            unlock() {
-                if (!this.ctx) {
-                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                    if (AudioCtx) this.ctx = new AudioCtx();
-                }
-                if (this.ctx && this.ctx.state === 'suspended') {
-                    this.ctx.resume().catch(() => {});
-                }
-                if ('speechSynthesis' in window && !this._ttsPrimed) {
-                    try {
-                        const primer = new SpeechSynthesisUtterance('');
-                        primer.volume = 0;
-                        window.speechSynthesis.speak(primer);
-                        this._ttsPrimed = true;
-                    } catch {}
-                }
+        unlock() {
+            if (!this.ctx) {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) this.ctx = new AudioCtx();
             }
-
-            playChime(type = 'send') {
-                if (!this.enabled) return;
-                this.unlock();
-                if (!this.ctx) return;
-
+            if (this.ctx && this.ctx.state === 'suspended') {
+                this.ctx.resume().catch(() => {});
+            }
+            if ('speechSynthesis' in window && !this._ttsPrimed) {
                 try {
-                    const now = this.ctx.currentTime;
-                    const osc = this.ctx.createOscillator();
-                    const gain = this.ctx.createGain();
-
-                    if (type === 'send') {
-                        osc.type = 'sine';
-                        osc.frequency.setValueAtTime(540, now);
-                        osc.frequency.exponentialRampToValueAtTime(760, now + 0.09);
-                        gain.gain.setValueAtTime(0.06, now);
-                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-                        osc.connect(gain);
-                        gain.connect(this.ctx.destination);
-                        osc.start(now);
-                        osc.stop(now + 0.1);
-                    } else if (type === 'reply') {
-                        const notes = [659.25, 880];
-                        notes.forEach((freq, idx) => {
-                            const o = this.ctx.createOscillator();
-                            const g = this.ctx.createGain();
-                            o.type = 'triangle';
-                            o.frequency.setValueAtTime(freq, now + idx * 0.07);
-                            g.gain.setValueAtTime(0.07, now + idx * 0.07);
-                            g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.14);
-                            o.connect(g);
-                            g.connect(this.ctx.destination);
-                            o.start(now + idx * 0.07);
-                            o.stop(now + idx * 0.07 + 0.15);
-                        });
-                    } else if (type === 'vrm') {
-                        const notes = [523.25, 659.25, 783.99, 1046.5];
-                        notes.forEach((freq, idx) => {
-                            const o = this.ctx.createOscillator();
-                            const g = this.ctx.createGain();
-                            o.type = 'sine';
-                            o.frequency.setValueAtTime(freq, now + idx * 0.06);
-                            g.gain.setValueAtTime(0.06, now + idx * 0.06);
-                            g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.18);
-                            o.connect(g);
-                            g.connect(this.ctx.destination);
-                            o.start(now + idx * 0.06);
-                            o.stop(now + idx * 0.06 + 0.19);
-                        });
-                    }
+                    const primer = new SpeechSynthesisUtterance(' ');
+                    primer.volume = 0;
+                    window.speechSynthesis.speak(primer);
+                    this._ttsPrimed = true;
                 } catch {}
             }
+        }
 
-            pickVoice() {
-                if (!this.voices.length && 'speechSynthesis' in window) {
-                    this.voices = window.speechSynthesis.getVoices() || [];
+        playChime(type = 'send') {
+            if (!this.enabled) return;
+            this.unlock();
+            if (!this.ctx) return;
+
+            try {
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                if (type === 'send') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(540, now);
+                    osc.frequency.exponentialRampToValueAtTime(760, now + 0.09);
+                    gain.gain.setValueAtTime(0.06, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else if (type === 'reply') {
+                    const notes = [659.25, 880];
+                    notes.forEach((freq, idx) => {
+                        const o = this.ctx.createOscillator();
+                        const g = this.ctx.createGain();
+                        o.type = 'triangle';
+                        o.frequency.setValueAtTime(freq, now + idx * 0.07);
+                        g.gain.setValueAtTime(0.07, now + idx * 0.07);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.14);
+                        o.connect(g);
+                        g.connect(this.ctx.destination);
+                        o.start(now + idx * 0.07);
+                        o.stop(now + idx * 0.07 + 0.15);
+                    });
+                } else if (type === 'vrm') {
+                    const notes = [523.25, 659.25, 783.99, 1046.5];
+                    notes.forEach((freq, idx) => {
+                        const o = this.ctx.createOscillator();
+                        const g = this.ctx.createGain();
+                        o.type = 'sine';
+                        o.frequency.setValueAtTime(freq, now + idx * 0.06);
+                        g.gain.setValueAtTime(0.06, now + idx * 0.06);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.18);
+                        o.connect(g);
+                        g.connect(this.ctx.destination);
+                        o.start(now + idx * 0.06);
+                        o.stop(now + idx * 0.06 + 0.19);
+                    });
                 }
-                if (this.preferredVoiceURI !== 'auto') {
-                    const chosen = this.voices.find(v => v.voiceURI === this.preferredVoiceURI);
-                    if (chosen) return chosen;
-                }
-                const femaleHints = /Samantha|Karen|Victoria|Moira|Tessa|Nicky|Ava|Allison|Google US English|Microsoft Zira|Aria|Jenny|Female/i;
-                return (
-                    this.voices.find(v => femaleHints.test(v.name) && v.lang.startsWith('en')) ||
-                    this.voices.find(v => v.lang.startsWith('en')) ||
-                    this.voices[0] ||
-                    null
-                );
+            } catch {}
+        }
+
+        pickVoice() {
+            if (!this.voices.length && 'speechSynthesis' in window) {
+                this.voices = window.speechSynthesis.getVoices() || [];
             }
-
-            cleanForSpeech(raw) {
-                return String(raw || '')
-                    .replace(/```[\s\S]*?```/g, ' code block ')
-                    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-                    .replace(/[*_`#>~|]/g, '')
-                    .trim();
+            if (this.preferredVoiceURI !== 'auto') {
+                const chosen = this.voices.find(v => v.voiceURI === this.preferredVoiceURI);
+                if (chosen) return chosen;
             }
+            const femaleHints = /Samantha|Karen|Victoria|Moira|Tessa|Nicky|Ava|Allison|Google US English|Microsoft Zira|Aria|Jenny|Female/i;
+            return (
+                this.voices.find(v => femaleHints.test(v.name) && v.lang.startsWith('en')) ||
+                this.voices.find(v => v.lang.startsWith('en')) ||
+                this.voices[0] ||
+                null
+            );
+        }
 
-            stopSpeaking() {
-                clearTimeout(this.fallbackTimer);
-                clearInterval(this.syllableTimer);
-                this.isSpeaking = false;
-                this.targetEnergy = 0;
-                if ('speechSynthesis' in window) {
-                    try { window.speechSynthesis.cancel(); } catch {}
-                }
-            }
+        cleanForSpeech(raw) {
+            return String(raw || '')
+                .replace(/```[\s\S]*?```/g, ' code block ')
+                .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                .replace(/[*_`#>~|]/g, '')
+                .trim();
+        }
 
-            speak(rawText) {
-                const text = this.cleanForSpeech(rawText);
-                if (!text) return;
-                this.stopSpeaking();
-                if (!this.enabled) return;
+        stopSpeaking({ cancelSynth = true } = {}) {
+            this._speakToken++;
+            clearTimeout(this.fallbackTimer);
+            clearInterval(this.syllableTimer);
+            this.fallbackTimer = null;
+            this.syllableTimer = null;
+            this.isSpeaking = false;
+            this.targetEnergy = 0;
 
-                this.unlock();
-                this.isSpeaking = true;
-
-                const visemes = ['aa', 'ih', 'ou', 'ee', 'oh'];
-                let idx = 0;
-                this.syllableTimer = setInterval(() => {
-                    if (!this.isSpeaking) return;
-                    this.currentViseme = visemes[idx % visemes.length];
-                    this.targetEnergy = 0.45 + Math.random() * 0.55;
-                    idx++;
-                }, 115);
-
-                const estimatedMs = Math.min(15000, Math.max(1200, text.length * 55 / this.rate));
-                this.fallbackTimer = setTimeout(() => this.stopSpeaking(), estimatedMs);
-
-                if ('speechSynthesis' in window) {
-                    const utter = new SpeechSynthesisUtterance(text);
-                    const voice = this.pickVoice();
-                    if (voice) utter.voice = voice;
-                    utter.pitch = this.pitch;
-                    utter.rate = this.rate;
-                    utter.onboundary = () => {
-                        this.targetEnergy = 0.6 + Math.random() * 0.4;
-                    };
-                    utter.onend = () => this.stopSpeaking();
-                    utter.onerror = () => this.stopSpeaking();
-                    window.speechSynthesis.speak(utter);
-                }
-            }
-
-            updateLipSync(dt, vrm) {
-                this.mouthEnergy += (this.targetEnergy - this.mouthEnergy) * Math.min(1, dt * 16);
-                if (!this.isSpeaking) this.targetEnergy *= 0.8;
-
-                const expr = vrm?.expressionManager;
-                if (!expr) return;
-
-                for (const name of ['aa', 'ih', 'ou', 'ee', 'oh']) {
-                    expr.setValue(name, name === this.currentViseme ? this.mouthEnergy : 0);
-                }
+            if (cancelSynth && 'speechSynthesis' in window) {
+                try { window.speechSynthesis.cancel(); } catch {}
             }
         }
 
-        const audio = new SukiAudioRenderer();
-
-        // ==========================================
-        // MATRIX BACKGROUND
-        // ==========================================
-        const matrixCanvas = document.getElementById('matrix-canvas');
-        const mCtx = matrixCanvas.getContext('2d');
-        const glyphs = 'SUKI🌸01アイウエオカキクケコ★☆';
-        let drops = [];
-
-        function resizeMatrix() {
-            matrixCanvas.width = matrixCanvas.clientWidth;
-            matrixCanvas.height = matrixCanvas.clientHeight;
-            const cols = Math.floor(matrixCanvas.width / 16);
-            drops = Array.from({ length: cols }, () => Math.random() * -20);
-        }
-        resizeMatrix();
-        window.addEventListener('resize', resizeMatrix);
-
-        // ==========================================
-        // THREE.JS + VRM VIEWER
-        // ==========================================
-        const holder = document.getElementById('vrm-canvas-holder');
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(32, holder.clientWidth / Math.max(1, holder.clientHeight), 0.1, 100);
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(holder.clientWidth, holder.clientHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.outputColorSpace = THREE.SRGBColorSpace;
-        holder.appendChild(renderer.domElement);
-
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-
-        scene.add(new THREE.AmbientLight(0xffffff, 1.1));
-        const keyLight = new THREE.DirectionalLight(0xffb6e6, 1.8);
-        keyLight.position.set(1.5, 2.5, 2.5);
-        scene.add(keyLight);
-
-        let currentVrm = null;
-        const gltfLoader = new GLTFLoader();
-        gltfLoader.register((parser) => new VRMLoaderPlugin(parser));
-
-        function resetCamera() {
-            const targetY = currentVrm ? 0.95 : 1.0;
-            camera.position.set(0, targetY + 0.15, 2.6);
-            controls.target.set(0, targetY, 0);
-            controls.update();
-        }
-        resetCamera();
-
-        async function loadVRMFromUrlOrFile(src) {
-            const gltf = await gltfLoader.loadAsync(src);
-            const vrm = gltf.userData.vrm;
-            if (!vrm) throw new Error('File is not a valid VRM model.');
-
-            if (currentVrm) {
-                scene.remove(currentVrm.scene);
-                VRMUtils.deepDispose(currentVrm.scene);
-            }
-            VRMUtils.removeUnnecessaryVertices(gltf.scene);
-            VRMUtils.combineSkeletons(gltf.scene);
-            vrm.scene.rotation.y = Math.PI; // Face camera
-            scene.add(vrm.scene);
-            currentVrm = vrm;
-            resetCamera();
-            audio.playChime('vrm');
-        }
-
-        // ==========================================
-        // CHAT & AI ENGINE
-        // ==========================================
-        const chatMessages = document.getElementById('chat-messages');
-        const chatForm = document.getElementById('chat-form');
-        const chatInput = document.getElementById('chat-input');
-        const chatSendBtn = document.getElementById('chat-send-btn');
-        const chatHistory = [];
-
-        function appendMessage(role, text) {
-            const wrap = document.createElement('div');
-            const isUser = role === 'user';
-            wrap.className = `p-2 rounded-xl max-w-[90%] ${isUser ? 'ml-auto bg-pink-600/30 border border-pink-500/30 text-pink-50' : 'bg-[#1a0f30]/80 border border-purple-500/25 text-gray-100 prose-suki'}`;
-            wrap.innerHTML = isUser ? escapeHtml(text) : (window.marked ? marked.parse(text) : escapeHtml(text));
-            chatMessages.appendChild(wrap);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            return wrap;
-        }
-
-        function escapeHtml(str) {
-            return String(str).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-        }
-
-        let selectedEngine = localStorage.getItem('suki_ai_engine') || 'pollinations:openai';
-
-        async function generateReply(userText) {
-            chatHistory.push({ role: 'user', content: userText });
-            const messagesPayload = [
-                { role: 'system', content: 'You are Suki, a cheerful, helpful anime AI companion. Keep replies concise and lively.' },
-                ...chatHistory.slice(-10)
-            ];
-
-            if (selectedEngine.startsWith('pollinations:')) {
-                const model = selectedEngine.split(':')[1] || 'openai';
-                const res = await fetch('https://text.pollinations.ai/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model, messages: messagesPayload })
-                });
-                if (!res.ok) throw new Error(`AI request failed (${res.status})`);
-                return (await res.text()).trim();
-            }
-
-            if (selectedEngine.startsWith('webllm:')) {
-                const modelId = selectedEngine.split(':')[1];
-                const { CreateMLCEngine } = await import('@mlc-ai/web-llm');
-                if (!window._sukiWebLLMEngine || window._sukiWebLLMModel !== modelId) {
-                    window._sukiWebLLMEngine = await CreateMLCEngine(modelId);
-                    window._sukiWebLLMModel = modelId;
-                }
-                const out = await window._sukiWebLLMEngine.chat.completions.create({ messages: messagesPayload });
-                return out.choices?.[0]?.message?.content?.trim() || 'Hmm, I lost my train of thought!';
-            }
-
-            return 'Engine not supported.';
-        }
-
-        chatForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const text = chatInput.value.trim();
+        speak(rawText) {
+            const text = this.cleanForSpeech(rawText);
             if (!text) return;
+            this.stopSpeaking({ cancelSynth: true });
+            if (!this.enabled) return;
 
-            audio.unlock();
-            audio.playChime('send');
-            chatInput.value = '';
-            chatSendBtn.disabled = true;
+            this.unlock();
+            const token = ++this._speakToken;
+            this.isSpeaking = true;
 
-            appendMessage('user', text);
-            const botEl = appendMessage('assistant', '...');
+            const visemes = ['aa', 'ih', 'ou', 'ee', 'oh'];
+            let idx = 0;
+            this.syllableTimer = setInterval(() => {
+                if (!this.isSpeaking || token !== this._speakToken) return;
+                this.currentViseme = visemes[idx % visemes.length];
+                this.targetEnergy = 0.45 + Math.random() * 0.55;
+                idx++;
+            }, 115);
 
-            try {
-                const reply = await generateReply(text);
-                chatHistory.push({ role: 'assistant', content: reply });
-                botEl.innerHTML = window.marked ? marked.parse(reply) : escapeHtml(reply);
-                audio.playChime('reply');
-                audio.speak(reply);
-            } catch (err) {
-                botEl.textContent = `Oops! ${err.message}`;
-            } finally {
-                chatSendBtn.disabled = false;
-                chatMessages.scrollTop = chatMessages.scrollHeight;
+            const estimatedMs = Math.min(20000, Math.max(1400, (text.length * 60) / Math.max(0.5, this.rate)));
+            this.fallbackTimer = setTimeout(() => {
+                if (token === this._speakToken) {
+                    this.stopSpeaking({ cancelSynth: false });
+                }
+            }, estimatedMs);
+
+            if ('speechSynthesis' in window) {
+                const utter = new SpeechSynthesisUtterance(text);
+                const voice = this.pickVoice();
+                if (voice) utter.voice = voice;
+                utter.pitch = this.pitch;
+                utter.rate = this.rate;
+                utter.onboundary = () => {
+                    if (token === this._speakToken) {
+                        this.targetEnergy = 0.6 + Math.random() * 0.4;
+                    }
+                };
+                utter.onend = () => {
+                    if (token === this._speakToken) {
+                        this.stopSpeaking({ cancelSynth: false });
+                    }
+                };
+                utter.onerror = () => {
+                    if (token === this._speakToken) {
+                        this.stopSpeaking({ cancelSynth: false });
+                    }
+                };
+                try {
+                    window.speechSynthesis.speak(utter);
+                } catch {
+                    this.stopSpeaking({ cancelSynth: false });
+                }
             }
-        });
-
-        // ==========================================
-        // CONTROLS, SETTINGS & VRM UPLOAD
-        // ==========================================
-        const voiceIcon = document.getElementById('voice-icon');
-        const voiceLabel = document.getElementById('voice-label');
-
-        function syncVoiceButton() {
-            voiceIcon.textContent = audio.enabled ? '🔊' : '🔇';
-            voiceLabel.textContent = audio.enabled ? 'Voice On' : 'Muted';
         }
-        syncVoiceButton();
 
-        document.getElementById('toggle-voice-btn').addEventListener('click', () => {
-            audio.enabled = !audio.enabled;
-            localStorage.setItem('suki_voice_enabled', String(audio.enabled));
-            if (!audio.enabled) audio.stopSpeaking();
-            syncVoiceButton();
-        });
-
-        document.getElementById('reset-camera-btn').addEventListener('click', resetCamera);
-
-        document.getElementById('install-ios-btn').addEventListener('click', () => {
-            appendMessage('assistant', 'On iPhone Safari, tap **Share** → **Add to Home Screen** to run Suki as a full-screen app!');
-        });
-
-        const settingsModal = document.getElementById('settings-modal');
-        const engineSelect = document.getElementById('ai-engine-select');
-        const pitchRange = document.getElementById('voice-pitch-range');
-        const rateRange = document.getElementById('voice-rate-range');
-        const pitchVal = document.getElementById('pitch-val');
-        const rateVal = document.getElementById('rate-val');
-        const voiceSelect = document.getElementById('voice-select');
-
-        engineSelect.value = selectedEngine;
-        pitchRange.value = audio.pitch;
-        rateRange.value = audio.rate;
-        pitchVal.textContent = audio.pitch.toFixed(2);
-        rateVal.textContent = audio.rate.toFixed(2);
-
-        pitchRange.addEventListener('input', () => { pitchVal.textContent = parseFloat(pitchRange.value).toFixed(2); });
-        rateRange.addEventListener('input', () => { rateVal.textContent = parseFloat(rateRange.value).toFixed(2); });
-
-        document.getElementById('open-settings-btn').addEventListener('click', () => {
-            audio.loadVoices();
-            settingsModal.classList.remove('hidden');
-        });
-        document.getElementById('close-settings-btn').addEventListener('click', () => settingsModal.classList.add('hidden'));
-
-        document.getElementById('test-voice-btn').addEventListener('click', () => {
-            audio.pitch = parseFloat(pitchRange.value);
-            audio.rate = parseFloat(rateRange.value);
-            audio.preferredVoiceURI = voiceSelect.value;
-            audio.speak('Hi! Suki is ready to chat with you!');
-        });
-
-        document.getElementById('save-settings-btn').addEventListener('click', () => {
-            selectedEngine = engineSelect.value;
-            audio.pitch = parseFloat(pitchRange.value);
-            audio.rate = parseFloat(rateRange.value);
-            audio.preferredVoiceURI = voiceSelect.value;
-
-            localStorage.setItem('suki_ai_engine', selectedEngine);
-            localStorage.setItem('suki_voice_pitch', String(audio.pitch));
-            localStorage.setItem('suki_voice_rate', String(audio.rate));
-            localStorage.setItem('suki_voice_uri', audio.preferredVoiceURI);
-
-            document.getElementById('active-engine-badge').textContent = selectedEngine.startsWith('webllm:') ? 'LOCAL WEBGPU' : 'FREE AI READY';
-            settingsModal.classList.add('hidden');
-        });
-
-        document.getElementById('vrm-file-input').addEventListener('change', async (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            const url = URL.createObjectURL(file);
-            try {
-                await loadVRMFromUrlOrFile(url);
-                appendMessage('assistant', `Loaded **${escapeHtml(file.name)}**!`);
-            } catch (err) {
-                appendMessage('assistant', `Couldn't load VRM: ${err.message}`);
-            } finally {
-                URL.revokeObjectURL(url);
-                e.target.value = '';
+        updateLipSync(dt, vrm) {
+            if (!this.isSpeaking) {
+                this.targetEnergy = 0;
+                if (this.mouthEnergy < 0.01) this.mouthEnergy = 0;
             }
-        });
+            this.mouthEnergy += (this.targetEnergy - this.mouthEnergy) * Math.min(1, dt * 16);
 
-        let chatCollapsed = false;
-        document.getElementById('toggle-chat-btn').addEventListener('click', () => {
-            chatCollapsed = !chatCollapsed;
-            chatMessages.classList.toggle('hidden', chatCollapsed);
-            document.getElementById('toggle-chat-icon').style.transform = chatCollapsed ? 'rotate(180deg)' : '';
-        });
+            const expr = vrm?.expressionManager;
+            if (!expr) return;
 
-        document.getElementById('clear-chat-btn').addEventListener('click', () => {
-            chatHistory.length = 0;
-            chatMessages.innerHTML = '';
-        });
+            for (const name of ['aa', 'ih', 'ou', 'ee', 'oh']) {
+                const val = name === this.currentViseme ? this.mouthEnergy : 0;
+                try { expr.setValue(name, val); } catch {}
+            }
+        }
+    }
 
-        window.addEventListener('resize', () => {
-            camera.aspect = holder.clientWidth / Math.max(1, holder.clientHeight);
-            camera.updateProjectionMatrix();
-            renderer.setSize(holder.clientWidth, holder.clientHeight);
-        });
+    const audio = new SukiAudioRenderer();
 
-        // ==========================================
-        // MAIN LOOP & INITIALIZATION
-        // ==========================================
-        const clock = new THREE.Clock();
-        const speakingIndicator = document.getElementById('speaking-indicator');
+    // ==========================================
+    // MATRIX BACKGROUND
+    // ==========================================
+    const matrixCanvas = document.getElementById('matrix-canvas');
+    const mCtx = matrixCanvas?.getContext('2d');
+    const glyphs = 'SUKI🌸01アイウエオカキクケコ★☆';
+    let drops = [];
 
-        function animate() {
-            requestAnimationFrame(animate);
-            const dt = Math.min(clock.getDelta(), 0.05);
+    function resizeMatrix() {
+        if (!matrixCanvas || !mCtx) return;
+        const w = Math.max(1, matrixCanvas.clientWidth);
+        const h = Math.max(1, matrixCanvas.clientHeight);
+        matrixCanvas.width = w;
+        matrixCanvas.height = h;
+        const cols = Math.max(1, Math.floor(w / 16));
+        drops = Array.from({ length: cols }, (_, i) => drops[i] ?? (Math.random() * -20));
+    }
+    resizeMatrix();
+    window.addEventListener('resize', resizeMatrix);
 
-            // Matrix rain
+    // ==========================================
+    // THREE.JS + VRM VIEWER
+    // ==========================================
+    const holder = document.getElementById('vrm-canvas-holder');
+    const scene = new THREE.Scene();
+
+    function getHolderSize() {
+        return {
+            w: Math.max(1, holder?.clientWidth || window.innerWidth),
+            h: Math.max(1, holder?.clientHeight || window.innerHeight)
+        };
+    }
+
+    const initSize = getHolderSize();
+    const camera = new THREE.PerspectiveCamera(32, initSize.w / initSize.h, 0.1, 100);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(initSize.w, initSize.h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    holder?.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 1.1));
+    const keyLight = new THREE.DirectionalLight(0xffb6e6, 1.8);
+    keyLight.position.set(1.5, 2.5, 2.5);
+    scene.add(keyLight);
+
+    let currentVrm = null;
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.register((parser) => new VRMLoaderPlugin(parser));
+
+    function resetCamera() {
+        let targetY = 1.0;
+        let dist = 2.6;
+
+        if (currentVrm?.scene) {
+            const box = new THREE.Box3().setFromObject(currentVrm.scene);
+            if (!box.isEmpty()) {
+                const size = box.getSize(new THREE.Vector3());
+                const center = box.getCenter(new THREE.Vector3());
+                targetY = center.y + size.y * 0.08;
+                dist = Math.max(1.4, size.y * 1.75);
+            } else {
+                targetY = 0.95;
+            }
+        }
+
+        camera.position.set(0, targetY + 0.12, dist);
+        controls.target.set(0, targetY, 0);
+        controls.update();
+    }
+    resetCamera();
+
+    async function loadVRMFromUrlOrFile(src) {
+        const gltf = await gltfLoader.loadAsync(src);
+        const vrm = gltf.userData?.vrm;
+        if (!vrm) throw new Error('File is not a valid VRM model.');
+
+        if (currentVrm) {
+            scene.remove(currentVrm.scene);
+            VRMUtils.deepDispose(currentVrm.scene);
+            currentVrm = null;
+        }
+
+        // Normalize VRM orientation toward camera
+        if (vrm.meta?.metaVersion === '0' && typeof VRMUtils.rotateVRM0 === 'function') {
+            VRMUtils.rotateVRM0(vrm);
+        } else {
+            vrm.scene.rotation.y = Math.PI;
+        }
+
+        scene.add(vrm.scene);
+        currentVrm = vrm;
+        resetCamera();
+        audio.playChime('vrm');
+    }
+
+    // ==========================================
+    // CHAT & AI ENGINE
+    // ==========================================
+    const chatMessages = document.getElementById('chat-messages');
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const chatSendBtn = document.getElementById('chat-send-btn');
+    const chatHistory = [];
+
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, (m) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[m]));
+    }
+
+    function escapeMarkdownInline(str) {
+        return String(str).replace(/([\\`*_{}[\]()#+\-.!|])/g, '\\$1');
+    }
+
+    function appendMessage(role, text, { isMarkdown = !isUserDefault(role) } = {}) {
+        const wrap = document.createElement('div');
+        const isUser = role === 'user';
+        wrap.className = `p-2 rounded-xl max-w-[90%] ${
+            isUser
+                ? 'ml-auto bg-pink-600/30 border border-pink-500/30 text-pink-50'
+                : 'bg-[#1a0f30]/80 border border-purple-500/25 text-gray-100 prose-suki'
+        }`;
+        if (isUser || !isMarkdown) {
+            wrap.textContent = text;
+        } else {
+            wrap.innerHTML = window.marked ? marked.parse(text) : escapeHtml(text);
+        }
+        chatMessages?.appendChild(wrap);
+        if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+        return wrap;
+    }
+
+    function isUserDefault(role) {
+        return role === 'user';
+    }
+
+    let selectedEngine = localStorage.getItem('suki_ai_engine') || 'pollinations:openai';
+
+    function syncEngineBadge() {
+        const badge = document.getElementById('active-engine-badge');
+        if (!badge) return;
+        badge.textContent = selectedEngine.startsWith('webllm:') ? 'LOCAL WEBGPU' : 'FREE AI READY';
+    }
+
+    async function generateReply(userText) {
+        chatHistory.push({ role: 'user', content: userText });
+        const messagesPayload = [
+            { role: 'system', content: 'You are Suki, a cheerful, helpful anime AI companion. Keep replies concise and lively.' },
+            ...chatHistory.slice(-10)
+        ];
+
+        if (selectedEngine.startsWith('pollinations:')) {
+            const model = selectedEngine.split(':')[1] || 'openai';
+            const res = await fetch('https://text.pollinations.ai/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model, messages: messagesPayload })
+            });
+            if (!res.ok) throw new Error(`AI request failed (${res.status})`);
+            return (await res.text()).trim();
+        }
+
+        if (selectedEngine.startsWith('webllm:')) {
+            const modelId = selectedEngine.split(':')[1];
+            const { CreateMLCEngine } = await import('@mlc-ai/web-llm');
+            if (!window._sukiWebLLMEngine || window._sukiWebLLMModel !== modelId) {
+                window._sukiWebLLMEngine = await CreateMLCEngine(modelId);
+                window._sukiWebLLMModel = modelId;
+            }
+            const out = await window._sukiWebLLMEngine.chat.completions.create({ messages: messagesPayload });
+            return out.choices?.[0]?.message?.content?.trim() || 'Hmm, I lost my train of thought!';
+        }
+
+        return 'Engine not supported.';
+    }
+
+    chatForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const text = chatInput?.value.trim();
+        if (!text) return;
+
+        audio.unlock();
+        audio.playChime('send');
+        if (chatInput) chatInput.value = '';
+        if (chatSendBtn) chatSendBtn.disabled = true;
+
+        appendMessage('user', text);
+        const botEl = appendMessage('assistant', '...', { isMarkdown: false });
+
+        try {
+            const reply = await generateReply(text);
+            chatHistory.push({ role: 'assistant', content: reply });
+            botEl.innerHTML = window.marked ? marked.parse(reply) : escapeHtml(reply);
+            audio.playChime('reply');
+            audio.speak(reply);
+        } catch (err) {
+            botEl.textContent = `Oops! ${err.message}`;
+        } finally {
+            if (chatSendBtn) chatSendBtn.disabled = false;
+            if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    });
+
+    // ==========================================
+    // CONTROLS, SETTINGS & VRM UPLOAD
+    // ==========================================
+    const voiceIcon = document.getElementById('voice-icon');
+    const voiceLabel = document.getElementById('voice-label');
+
+    function syncVoiceButton() {
+        if (voiceIcon) voiceIcon.textContent = audio.enabled ? '🔊' : '🔇';
+        if (voiceLabel) voiceLabel.textContent = audio.enabled ? 'Voice On' : 'Muted';
+    }
+    syncVoiceButton();
+
+    document.getElementById('toggle-voice-btn')?.addEventListener('click', () => {
+        audio.enabled = !audio.enabled;
+        localStorage.setItem('suki_voice_enabled', String(audio.enabled));
+        if (!audio.enabled) audio.stopSpeaking();
+        syncVoiceButton();
+    });
+
+    document.getElementById('reset-camera-btn')?.addEventListener('click', resetCamera);
+
+    document.getElementById('install-ios-btn')?.addEventListener('click', () => {
+        appendMessage('assistant', 'On iPhone Safari, tap **Share** → **Add to Home Screen** to run Suki as a full-screen app!');
+    });
+
+    const settingsModal = document.getElementById('settings-modal');
+    const engineSelect = document.getElementById('ai-engine-select');
+    const pitchRange = document.getElementById('voice-pitch-range');
+    const rateRange = document.getElementById('voice-rate-range');
+    const pitchVal = document.getElementById('pitch-val');
+    const rateVal = document.getElementById('rate-val');
+    const voiceSelect = document.getElementById('voice-select');
+
+    if (engineSelect) engineSelect.value = selectedEngine;
+    syncEngineBadge();
+    if (pitchRange) pitchRange.value = audio.pitch;
+    if (rateRange) rateRange.value = audio.rate;
+    if (pitchVal) pitchVal.textContent = audio.pitch.toFixed(2);
+    if (rateVal) rateVal.textContent = audio.rate.toFixed(2);
+
+    pitchRange?.addEventListener('input', () => {
+        if (pitchVal) pitchVal.textContent = parseFloat(pitchRange.value).toFixed(2);
+    });
+    rateRange?.addEventListener('input', () => {
+        if (rateVal) rateVal.textContent = parseFloat(rateRange.value).toFixed(2);
+    });
+
+    document.getElementById('open-settings-btn')?.addEventListener('click', () => {
+        audio.loadVoices();
+        settingsModal?.classList.remove('hidden');
+    });
+    document.getElementById('close-settings-btn')?.addEventListener('click', () => {
+        settingsModal?.classList.add('hidden');
+    });
+
+    document.getElementById('test-voice-btn')?.addEventListener('click', () => {
+        if (pitchRange) audio.pitch = parseFloat(pitchRange.value);
+        if (rateRange) audio.rate = parseFloat(rateRange.value);
+        if (voiceSelect) audio.preferredVoiceURI = voiceSelect.value;
+        audio.speak('Hi! Suki is ready to chat with you!');
+    });
+
+    document.getElementById('save-settings-btn')?.addEventListener('click', () => {
+        if (engineSelect) selectedEngine = engineSelect.value;
+        if (pitchRange) audio.pitch = parseFloat(pitchRange.value);
+        if (rateRange) audio.rate = parseFloat(rateRange.value);
+        if (voiceSelect) audio.preferredVoiceURI = voiceSelect.value;
+
+        localStorage.setItem('suki_ai_engine', selectedEngine);
+        localStorage.setItem('suki_voice_pitch', String(audio.pitch));
+        localStorage.setItem('suki_voice_rate', String(audio.rate));
+        localStorage.setItem('suki_voice_uri', audio.preferredVoiceURI);
+
+        syncEngineBadge();
+        settingsModal?.classList.add('hidden');
+    });
+
+    document.getElementById('vrm-file-input')?.addEventListener('change', async (e) => {
+        const input = e.target;
+        const file = input?.files?.[0];
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        try {
+            await loadVRMFromUrlOrFile(url);
+            appendMessage('assistant', `Loaded **${escapeMarkdownInline(file.name)}**!`);
+        } catch (err) {
+            appendMessage('assistant', `Couldn't load VRM: ${err.message}`, { isMarkdown: false });
+        } finally {
+            URL.revokeObjectURL(url);
+            input.value = '';
+        }
+    });
+
+    let chatCollapsed = false;
+    document.getElementById('toggle-chat-btn')?.addEventListener('click', () => {
+        chatCollapsed = !chatCollapsed;
+        chatMessages?.classList.toggle('hidden', chatCollapsed);
+        const icon = document.getElementById('toggle-chat-icon');
+        if (icon) icon.style.transform = chatCollapsed ? 'rotate(180deg)' : '';
+    });
+
+    document.getElementById('clear-chat-btn')?.addEventListener('click', () => {
+        chatHistory.length = 0;
+        if (chatMessages) chatMessages.innerHTML = '';
+    });
+
+    function handleViewportResize() {
+        const { w, h } = getHolderSize();
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+        resizeMatrix();
+    }
+
+    window.addEventListener('resize', handleViewportResize);
+    if (holder && typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(handleViewportResize).observe(holder);
+    }
+
+    // ==========================================
+    // MAIN LOOP & INITIALIZATION
+    // ==========================================
+    const clock = new THREE.Clock();
+    const speakingIndicator = document.getElementById('speaking-indicator');
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const dt = Math.min(clock.getDelta(), 0.05);
+
+        if (mCtx && matrixCanvas && matrixCanvas.width > 0 && matrixCanvas.height > 0) {
             mCtx.fillStyle = 'rgba(5, 3, 8, 0.12)';
             mCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
             mCtx.fillStyle = '#ec4899';
@@ -481,51 +585,51 @@
                 if (drops[i] * 16 > matrixCanvas.height && Math.random() > 0.975) drops[i] = 0;
                 drops[i]++;
             }
-
-            // VRM + lip-sync + idle breathing
-            if (currentVrm) {
-                const spine = currentVrm.humanoid?.getNormalizedBoneNode('spine');
-                if (spine) spine.rotation.x = Math.sin(clock.elapsedTime * 2) * 0.025;
-                audio.updateLipSync(dt, currentVrm);
-                currentVrm.update(dt);
-            }
-
-            speakingIndicator.classList.toggle('animate-ping', audio.isSpeaking);
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        const loadingEl = document.getElementById('stage-loading');
-        const loadingTextEl = document.getElementById('stage-loading-text');
-
-        function setLoadingStatus(msg) {
-            if (loadingTextEl) loadingTextEl.textContent = msg;
         }
 
-        function hideLoading() {
-            if (loadingEl) loadingEl.classList.add('hidden');
+        if (currentVrm) {
+            const spine = currentVrm.humanoid?.getNormalizedBoneNode('spine');
+            if (spine) spine.rotation.x = Math.sin(clock.elapsedTime * 2) * 0.025;
+            audio.updateLipSync(dt, currentVrm);
+            currentVrm.update(dt);
         }
 
-        async function initApp() {
-            const safetyTimer = setTimeout(() => {
-                setLoadingStatus('Taking longer than expected...');
-                hideLoading();
-            }, 12000);
+        speakingIndicator?.classList.toggle('animate-ping', audio.isSpeaking);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
 
-            try {
-                setLoadingStatus('Summoning Cute Anime Suki...');
-                // If you host a default model, uncomment and point to your path:
-                // await loadVRMFromUrlOrFile('./suki.vrm');
-                appendMessage('assistant', 'Heya! Load a `.vrm` file up top or ask me anything~');
-            } catch (err) {
-                console.error('SUKI init error:', err);
-                setLoadingStatus('Ready — Load a .VRM file to begin');
-            } finally {
-                clearTimeout(safetyTimer);
-                hideLoading();
-            }
+    const loadingEl = document.getElementById('stage-loading');
+    const loadingTextEl = document.getElementById('stage-loading-text');
+
+    function setLoadingStatus(msg) {
+        if (loadingTextEl) loadingTextEl.textContent = msg;
+    }
+
+    function hideLoading() {
+        if (loadingEl) loadingEl.classList.add('hidden');
+    }
+
+    async function initApp() {
+        const safetyTimer = setTimeout(() => {
+            setLoadingStatus('Taking longer than expected...');
+            hideLoading();
+        }, 12000);
+
+        try {
+            setLoadingStatus('Summoning Cute Anime Suki...');
+            // If you host a default model, uncomment and point to your path:
+            // await loadVRMFromUrlOrFile('./suki.vrm');
+            appendMessage('assistant', 'Heya! Load a `.vrm` file up top or ask me anything~');
+        } catch (err) {
+            console.error('SUKI init error:', err);
+            setLoadingStatus('Ready — Load a .VRM file to begin');
+        } finally {
+            clearTimeout(safetyTimer);
+            hideLoading();
         }
+    }
 
-        initApp();
-    </script>
+    initApp();
+</script>
