@@ -47,11 +47,7 @@
                 opt.textContent = `${v.name} (${v.lang})`;
                 select.appendChild(opt);
             }
-            if ([...select.options].some(o => o.value === current)) {
-                select.value = current;
-            } else {
-                select.value = 'auto';
-            }
+            select.value = [...select.options].some(o => o.value === current) ? current : 'auto';
         }
 
         unlock() {
@@ -79,10 +75,9 @@
 
             try {
                 const now = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-
                 if (type === 'send') {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(540, now);
                     osc.frequency.exponentialRampToValueAtTime(760, now + 0.09);
@@ -92,33 +87,21 @@
                     gain.connect(this.ctx.destination);
                     osc.start(now);
                     osc.stop(now + 0.1);
-                } else if (type === 'reply') {
-                    const notes = [659.25, 880];
+                } else {
+                    const notes = type === 'vrm'
+                        ? [523.25, 659.25, 783.99, 1046.5]
+                        : [659.25, 880];
                     notes.forEach((freq, idx) => {
                         const o = this.ctx.createOscillator();
                         const g = this.ctx.createGain();
-                        o.type = 'triangle';
-                        o.frequency.setValueAtTime(freq, now + idx * 0.07);
-                        g.gain.setValueAtTime(0.07, now + idx * 0.07);
-                        g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.14);
+                        o.type = type === 'vrm' ? 'sine' : 'triangle';
+                        o.frequency.setValueAtTime(freq, now + idx * 0.065);
+                        g.gain.setValueAtTime(0.065, now + idx * 0.065);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.065 + 0.15);
                         o.connect(g);
                         g.connect(this.ctx.destination);
-                        o.start(now + idx * 0.07);
-                        o.stop(now + idx * 0.07 + 0.15);
-                    });
-                } else if (type === 'vrm') {
-                    const notes = [523.25, 659.25, 783.99, 1046.5];
-                    notes.forEach((freq, idx) => {
-                        const o = this.ctx.createOscillator();
-                        const g = this.ctx.createGain();
-                        o.type = 'sine';
-                        o.frequency.setValueAtTime(freq, now + idx * 0.06);
-                        g.gain.setValueAtTime(0.06, now + idx * 0.06);
-                        g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.18);
-                        o.connect(g);
-                        g.connect(this.ctx.destination);
-                        o.start(now + idx * 0.06);
-                        o.stop(now + idx * 0.06 + 0.19);
+                        o.start(now + idx * 0.065);
+                        o.stop(now + idx * 0.065 + 0.16);
                     });
                 }
             } catch {}
@@ -159,7 +142,11 @@
             this.targetEnergy = 0;
 
             if (cancelSynth && 'speechSynthesis' in window) {
-                try { window.speechSynthesis.cancel(); } catch {}
+                try {
+                    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+                        window.speechSynthesis.cancel();
+                    }
+                } catch {}
             }
         }
 
@@ -193,8 +180,9 @@
                 const utter = new SpeechSynthesisUtterance(text);
                 const voice = this.pickVoice();
                 if (voice) utter.voice = voice;
-                utter.pitch = this.pitch;
-                utter.rate = this.rate;
+                utter.pitch = Math.min(2, Math.max(0.1, this.pitch));
+                utter.rate = Math.min(10, Math.max(0.1, this.rate));
+
                 utter.onboundary = () => {
                     if (token === this._speakToken) {
                         this.targetEnergy = 0.6 + Math.random() * 0.4;
@@ -205,11 +193,12 @@
                         this.stopSpeaking({ cancelSynth: false });
                     }
                 };
-                utter.onerror = () => {
-                    if (token === this._speakToken) {
+                utter.onerror = (ev) => {
+                    if (token === this._speakToken && ev?.error !== 'interrupted') {
                         this.stopSpeaking({ cancelSynth: false });
                     }
                 };
+
                 try {
                     window.speechSynthesis.speak(utter);
                 } catch {
@@ -221,7 +210,10 @@
         updateLipSync(dt, vrm) {
             if (!this.isSpeaking) {
                 this.targetEnergy = 0;
-                if (this.mouthEnergy < 0.01) this.mouthEnergy = 0;
+                if (this.mouthEnergy < 0.01) {
+                    this.mouthEnergy = 0;
+                    this.currentViseme = 'aa';
+                }
             }
             this.mouthEnergy += (this.targetEnergy - this.mouthEnergy) * Math.min(1, dt * 16);
 
@@ -247,15 +239,14 @@
 
     function resizeMatrix() {
         if (!matrixCanvas || !mCtx) return;
-        const w = Math.max(1, matrixCanvas.clientWidth);
-        const h = Math.max(1, matrixCanvas.clientHeight);
+        const w = Math.max(1, matrixCanvas.clientWidth || window.innerWidth);
+        const h = Math.max(1, matrixCanvas.clientHeight || window.innerHeight);
         matrixCanvas.width = w;
         matrixCanvas.height = h;
         const cols = Math.max(1, Math.floor(w / 16));
         drops = Array.from({ length: cols }, (_, i) => drops[i] ?? (Math.random() * -20));
     }
     resizeMatrix();
-    window.addEventListener('resize', resizeMatrix);
 
     // ==========================================
     // THREE.JS + VRM VIEWER
@@ -296,6 +287,7 @@
         let dist = 2.6;
 
         if (currentVrm?.scene) {
+            currentVrm.scene.updateMatrixWorld(true);
             const box = new THREE.Box3().setFromObject(currentVrm.scene);
             if (!box.isEmpty()) {
                 const size = box.getSize(new THREE.Vector3());
@@ -324,11 +316,9 @@
             currentVrm = null;
         }
 
-        // Normalize VRM orientation toward camera
+        // VRM 0.x models face -Z by default; VRM 1.0 already faces +Z
         if (vrm.meta?.metaVersion === '0' && typeof VRMUtils.rotateVRM0 === 'function') {
             VRMUtils.rotateVRM0(vrm);
-        } else {
-            vrm.scene.rotation.y = Math.PI;
         }
 
         scene.add(vrm.scene);
@@ -356,7 +346,14 @@
         return String(str).replace(/([\\`*_{}[\]()#+\-.!|])/g, '\\$1');
     }
 
-    function appendMessage(role, text, { isMarkdown = !isUserDefault(role) } = {}) {
+    function renderRichText(text) {
+        if (window.marked && typeof window.marked.parse === 'function') {
+            return window.marked.parse(text);
+        }
+        return escapeHtml(text).replace(/\n/g, '<br>');
+    }
+
+    function appendMessage(role, text, { isMarkdown = role !== 'user' } = {}) {
         const wrap = document.createElement('div');
         const isUser = role === 'user';
         wrap.className = `p-2 rounded-xl max-w-[90%] ${
@@ -367,15 +364,11 @@
         if (isUser || !isMarkdown) {
             wrap.textContent = text;
         } else {
-            wrap.innerHTML = window.marked ? marked.parse(text) : escapeHtml(text);
+            wrap.innerHTML = renderRichText(text);
         }
         chatMessages?.appendChild(wrap);
         if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
         return wrap;
-    }
-
-    function isUserDefault(role) {
-        return role === 'user';
     }
 
     let selectedEngine = localStorage.getItem('suki_ai_engine') || 'pollinations:openai';
@@ -405,6 +398,9 @@
         }
 
         if (selectedEngine.startsWith('webllm:')) {
+            if (!('gpu' in navigator)) {
+                throw new Error('WebGPU is not supported in this browser.');
+            }
             const modelId = selectedEngine.split(':')[1];
             const { CreateMLCEngine } = await import('@mlc-ai/web-llm');
             if (!window._sukiWebLLMEngine || window._sukiWebLLMModel !== modelId) {
@@ -434,7 +430,7 @@
         try {
             const reply = await generateReply(text);
             chatHistory.push({ role: 'assistant', content: reply });
-            botEl.innerHTML = window.marked ? marked.parse(reply) : escapeHtml(reply);
+            botEl.innerHTML = renderRichText(reply);
             audio.playChime('reply');
             audio.speak(reply);
         } catch (err) {
@@ -619,7 +615,6 @@
 
         try {
             setLoadingStatus('Summoning Cute Anime Suki...');
-            // If you host a default model, uncomment and point to your path:
             // await loadVRMFromUrlOrFile('./suki.vrm');
             appendMessage('assistant', 'Heya! Load a `.vrm` file up top or ask me anything~');
         } catch (err) {
